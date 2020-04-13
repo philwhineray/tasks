@@ -1,0 +1,11 @@
+Google tasks does not support times or recurrence in API v1
+
+List of possible recurrence types which may/may not be supported in future:
+- every Weekday
+- every Mon/Tue/Wed/...
+- every 2 weeks (on a particular day?)
+- every month on the nth day
+- every month on the nth Mon/Tue/Wed/...
+- every month on the last but nth Mon/Tue/Wed/...
+- every (n) year (s) on day/month
+

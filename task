@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+
+from GoogleTasks import GoogleTasks
+from Project import Project
+from Task import Task
+
+help = """
+Usage: task COMMAND [OPTION...] WORDS...
+
+task - task management via google task api
+
+COMMAND:
+    list   - List tasks
+    add    - Add a task
+    rename - Rename task
+    done   - Mark as complete
+    undo   - Mark as incomplete
+    delete - Remove task
+    edit   - Edit task
+    order  - Bulk move / re-order tasks
+
+OPTION:
+    +TAG            - A tag
+    project:PROJECT - Work on PROJECT, rather than the default (also p:PROJECT)
+    -P or -p        - Operate at whole-project level
+    -f              - Apply operation without confirmation
+    -v              - Verbose (e.g. include notes in list)
+    -a              - All (e.g. include completed tasks in list)
+    title:TITLE     - New title
+
+WORD:
+    Numeric: task ID
+    +WORD:   regexp
+"""
+
+optionMap = {
+      "-P": "project",
+      "-p": "project",
+      "-f": "force",
+      "-v": "verbose",
+      "-a": "all",
+      "-z": "debug",
+      "-h": "help",
+      }
+
+def main( argv ):
+   # Cleanup up automatically on Ctrl-C
+   tempdir = tempfile.TemporaryDirectory( prefix = "task-" )
+
+   configDir = os.environ[ 'HOME' ] + '/.config/tasks'
+   cacheDir = os.environ[ 'HOME' ] + '/.cache/tasks'
+   if not os.path.exists( configDir ):
+      os.makedirs( configDir )
+   if not os.path.exists( cacheDir ):
+      os.makedirs( cacheDir )
+
+   options = set()
+   tags = set()
+   words = []
+   command = None
+   specifiedProject = set()
+   args = { "tempdir" : tempdir.name }
+
+   commandMap = {
+         "add" : doTaskAdd,
+         "list" : doTaskList,
+         "edit" : doTaskEdit,
+         "order" : doTasksOrder,
+         "rename" : doTaskRename,
+         "done" : doTaskDone,
+         "undo" : doTaskUndo,
+         "delete" : doTaskDelete,
+         "project-add" : doProjectAdd,
+         "project-list" : doProjectList,
+         "project-rename" : doProjectRename,
+         "project-delete" : doProjectDelete,
+         }
+
+   aliasMap = {
+         "list" : [ "ls" ],
+         "delete" : [ "rm", "del" ],
+         "rename" : [ "mv" ],
+         "project-list" : [ "project-ls" ],
+         "project-delete" : [ "project-rm", "project-del" ],
+         "project-rename" : [ "project-mv" ]
+         }
+
+   for commandToAlias, aliasList in aliasMap.items():
+      for alias in aliasList:
+         commandMap[ alias ] = commandMap[ commandToAlias ]
+
+   for arg in sys.argv:
+      if re.match( r"-", arg ):
+         if arg in optionMap:
+            options.add( optionMap[ arg ] )
+         else:
+            print( "warning: option not recognised: %s" % arg, file=sys.stderr )
+      elif arg[ 0 ] == '+':
+         tags.put( arg[ 1: ] )
+      elif re.match( r"p(roject)?:", arg ):
+         projectName = arg[ arg.index( ":" ) + 1 : ]
+         specifiedProject.add( projectName.lower() )
+      elif re.match( r"t(itle)?:", arg ):
+         args[ "newTitle" ] = arg[ arg.index( ":" )+1 : ]
+      elif command:
+         words.append( arg )
+      else:
+         command = arg
+
+   if "project" in options and not re.match( "project-", command ):
+      command = "project-" + command
+
+   if command not in commandMap:
+      print( help )
+      if command:
+         print( "error: no such command: %s" % command, file=sys.stderr )
+      return 1
+
+   if "help" in options:
+      # TODO - per-command help
+      print( help )
+      return 0
+
+   taskApi = GoogleTasks( configDir, cacheDir )
+   taskApi.authenticate()
+
+   commandMap[ command ]( taskApi, options, tags, words, specifiedProject, args )
+
+def getMatchingProjects( taskApi, specifiedProject ):
+   projects = taskApi.getProjects()
+   if not specifiedProject:
+      return projects
+   match = [ p for p in projects if p.shortId in specifiedProject ]
+   if match:
+      return match
+   match = [ p for p in projects if p.title.lower() in specifiedProject ]
+   return match
+
+def getMatchingProject( taskApi, specifiedProject ):
+   match = getMatchingProjects( taskApi, specifiedProject )
+   if len( match ) != 1:
+      raise RuntimeError( "Matched %d project(s)" % len( match ) )
+   return match[ 0 ]
+
+
+def doTaskAdd( taskApi, options, tags, words, specifiedProject, args ):
+   if not specifiedProject:
+      specifiedProject = [ "inbox" ]
+   project = getMatchingProject( taskApi, specifiedProject )
+   task = Task( project, " ".join( words ) )
+   taskApi.addTask( task )
+   taskApi.invalidateCache( task )
+
+def filterAll( tasks ):
+   return tasks
+
+def filterComplete( tasks ):
+   #return [ task for task in tasks if task.complete ]
+   return tasks
+
+def filterIncomplete( tasks ):
+   #return [ task for task in tasks if not task.complete ]
+   return tasks
+
+def getMatchingTasks( taskApi, options, tags, words, specifiedProject ):
+   projects = getMatchingProjects( taskApi, specifiedProject )
+   tasks = taskApi.getTasks( projects )
+   match = []
+   for task in tasks:
+      for word in words:
+         if ( word != task.shortId and
+               not re.search( word, task.title, flags=re.IGNORECASE ) ):
+            break
+      else:
+         if "debug" in options:
+            print( "%s:" % task.shortId, task.apiObject )
+         match.append( task )
+   return match
+
+def getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                     completionFilter=filterAll ):
+   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+   if len( tasks ) != 1:
+      tasks = completionFilter( tasks )
+   if len( tasks ) != 1:
+      raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
+   return tasks[ 0 ]
+
+def printTask( task, options, outfile=sys.stdout ):
+   if "debug" in options:
+      print( "%s:" % task.shortId, task.apiObject, file=outfile )
+   else:
+      print( task.lineString(), file=outfile )
+      if "verbose" in options and "notes" in task.apiObject:
+         print( "  ", task.apiObject[ "notes" ], file=outfile )
+
+def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
+   if projects is None:
+      projects = set( task.project for task in tasks )
+   for i, project in enumerate( sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" ) ):
+      if i > 0: print( "", file=outfile )
+      print( project, file=outfile )
+      # Ensure items with due dates are at the top and in order
+      for task in sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) ):
+         if task.project.title == project.title:
+            if "all" in options or not task.complete:
+               printTask( task, options, outfile=outfile )
+
+def doTaskList( taskApi, options, tags, words, specifiedProject, args ):
+   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+   printTasksInProjects( None, tasks, options )
+
+def doTaskRename( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterIncomplete )
+   newTitle = args.get( "newTitle" )
+   if not newTitle:
+      raise RuntimeError( "No new title given" )
+   task.title = newTitle
+   taskApi.updateTask( task )
+   taskApi.invalidateCache( task )
+
+def doTaskEdit( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterIncomplete )
+   raise NotImplementedError( "doTasksEdit" )
+
+def doTasksOrder( taskApi, options, tags, words, specifiedProject, args ):
+   if options or tags or words:
+      raise RuntimeError( "order: takes no arguments" )
+   projects = getMatchingProjects( taskApi, specifiedProject )
+   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+   taskById = {}
+   for task in tasks:
+      taskById[ task.shortId ] = task
+   projectByName = {}
+   for project in projects:
+      projectByName[ project.title ] = project
+   taskFilePath = args[ 'tempdir' ] + '/tasks.txt'
+   taskFile = open( taskFilePath, 'w')
+   with open( taskFilePath, 'w' ) as taskFile:
+      printTasksInProjects( projects, tasks, options, outfile=taskFile  )
+   subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
+   toComplete = set()
+   toReparent = set()
+   with open( taskFilePath, 'r' ) as taskFile:
+      project = None
+      for line in taskFile:
+         match = re.match( r"(t[0-9a-f]+) +\[([ X])\] +", line )
+         if match:
+            task = taskById[ match[ 1 ] ]
+            if match[ 2 ] == 'X':
+               toComplete.add( task )
+            if task.project.title != project.title:
+               toReparent.add( ( task, task.project, project ) )
+         elif re.match( r"[A-Za-z0-9_]", line ):
+            project = projectByName[ line.strip() ]
+   toInvalidate = set()
+   for task in toComplete:
+      task.complete = True
+      taskApi.updateTask( task )
+      toInvalidate.add( task )
+   for task, fromProject, toProject in toReparent:
+      taskApi.moveTask( task, toProject )
+      if "due" in task.apiObject:
+         print( "Warning: possible loss of time/repeat:", task.lineString() )
+      toInvalidate.add( fromProject )
+      toInvalidate.add( toProject )
+   for item in toInvalidate:
+      taskApi.invalidateCache( item )
+
+def doTaskDone( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterIncomplete )
+   task.complete = True
+   taskApi.updateTask( task )
+   taskApi.invalidateCache( task )
+   printTask( task, options )
+
+def doTaskUndo( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterComplete )
+   task.complete = False
+   taskApi.updateTask( task )
+   taskApi.invalidateCache( task )
+   printTask( task, options )
+
+def doTaskDelete( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterIncomplete )
+   printTask( task, options )
+   taskApi.invalidateCache( task.project )
+   taskApi.deleteTask( task )
+
+def doProjectAdd( taskApi, options, tags, words, specifiedProject, args ):
+   project = Project( ' '.join( words ) )
+   taskApi.addProject( project )
+
+def doProjectList( taskApi, options, tags, words, specifiedProject, args ):
+   projects = getMatchingProjects( taskApi, specifiedProject )
+   for project in projects:
+      if "debug" in options:
+         print( "%s:" % project.shortId, project.apiObject )
+      else:
+         print( "%s:" % project.shortId, project )
+
+def doProjectRename( taskApi, options, tags, words, specifiedProject, args ):
+   project = getMatchingProject( taskApi, specifiedProject )
+   if len( words ) < 1:
+      raise RuntimeError( "No new name given" )
+   project.title = ' '.join( words )
+   taskApi.updateProject( project )
+
+def doProjectDelete( taskApi, options, tags, words, specifiedProject, args ):
+   def delProject( project, force ):
+      if not force:
+         print( "delete %s: %s? [y/N]" % ( project.shortId, project ), file=sys.stderr )
+         return
+      taskApi.deleteProject( project )
+      print( "deleted: %s: %s" % ( project.shortId, project ), file=sys.stderr )
+
+   if not specifiedProject:
+      raise RuntimeError( "must specify project id(s) or name(s)" )
+   projects = getMatchingProjects( taskApi, specifiedProject )
+   titles = set( [ p.title for p in projects ] )
+   for project in projects:
+      if project.title in titles:
+         delProject( project, "force" in options )
+
+if __name__ == '__main__':
+   program = sys.argv.pop( 0 )
+   status = main( sys.argv )
+   if not status:
+      status = 0
+   sys.exit( status )

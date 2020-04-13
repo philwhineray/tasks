@@ -1,0 +1,27 @@
+{
+   "items" : [
+      {
+         "selfLink" : "https://www.googleapis.com/tasks/v1/users/@me/lists/MDEyMjgwODkxNTU0MzY1MTc3MzM6MDow",
+         "title" : "My Tasks",
+         "updated" : "2019-04-28T06:24:14.000Z",
+         "kind" : "tasks#taskList",
+         "id" : "MDEyMjgwODkxNTU0MzY1MTc3MzM6MDow"
+      },
+      {
+         "selfLink" : "https://www.googleapis.com/tasks/v1/users/@me/lists/MDEyMjgwODkxNTU0MzY1MTc3MzM6MDYxMzg0NTIxODQwNzUzOTow",
+         "id" : "MDEyMjgwODkxNTU0MzY1MTc3MzM6MDYxMzg0NTIxODQwNzUzOTow",
+         "updated" : "2019-04-28T06:24:14.000Z",
+         "kind" : "tasks#taskList",
+         "title" : ""
+      },
+      {
+         "selfLink" : "https://www.googleapis.com/tasks/v1/users/@me/lists/MDEyMjgwODkxNTU0MzY1MTc3MzM6NTg2OTE4MzM4MjI4NzIyMTow",
+         "id" : "MDEyMjgwODkxNTU0MzY1MTc3MzM6NTg2OTE4MzM4MjI4NzIyMTow",
+         "updated" : "2019-04-22T20:07:24.000Z",
+         "kind" : "tasks#taskList",
+         "title" : "Philip's list"
+      }
+   ],
+   "kind" : "tasks#taskLists",
+   "etag" : "'84_7Cubo3y98GMV9bE3zQclHxhc/PQw0RiZGXFj4G7EFJoqsIS7tFH4'"
+}

@@ -1,17 +1,21 @@
 Task
 ====
 
-Cli modelled on task warrior:
-
-* https://taskwarrior.org/docs/design/cli.html
+Cli to interact with google tasks
 
 Pre-requisites
 ==============
 
+Python 3 Pip
+
 ~~~
-pip3 install -U google-api-python-client
-pip3 install -U google-auth-httplib2
-pip3 install -U google-auth-oauthlib
+sudo apt install python3-pip
+~~~
+
+~~~
+python3 -m pip install --user google-api-python-client
+python3 -m pip install --user google-auth-httplib2
+python3 -m pip install --user google-auth-oauthlib
 ~~~
 
 App authentication
@@ -35,5 +39,6 @@ Limitations
 
 At present the google tasks API does not show / permit setting the
 time of a task, even though their own tools can do this. See "due":
-   https://developers.google.com/tasks/v1/reference/tasks
-   https://stackoverflow.com/questions/55251751/tasks-now-have-a-due-time-as-well-as-date-but-api-still-says-000000
+
+* https://developers.google.com/tasks/v1/reference/tasks
+* https://stackoverflow.com/questions/55251751/tasks-now-have-a-due-time-as-well-as-date-but-api-still-says-000000

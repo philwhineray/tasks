@@ -145,11 +145,6 @@ def main( argv ):
    taskApi = GoogleTasks( configDir, cacheDir )
    taskApi.authenticate()
 
-   # TODO when we have boolean combinators for criteria, default to combining:
-   #   incomplete AND ( user-specified )
-   # unless the "-a" flag is passed.
-   # This will replace the filters which are not doing a very good job.
-
    commandMap[ command ]( taskApi, options, tags, criteria, projectCriteria, words, args )
 
 def getMatchingProjects( taskApi, options, projectCriteria ):
@@ -179,20 +174,15 @@ def doTaskAdd( taskApi, options, tags, criteria, words, args ):
    taskApi.addTask( task )
    taskApi.invalidateCache( task )
 
-def filterAll( tasks ):
-   return tasks
-
-def filterComplete( tasks ):
-   #return [ task for task in tasks if task.complete ]
-   return tasks
-
-def filterIncomplete( tasks ):
-   #return [ task for task in tasks if not task.complete ]
-   return tasks
-
 def getMatchingTasks( taskApi, options, tags, criteria, projectCriteria ):
    projects = taskApi.getProjects()
    tasks = taskApi.getTasks( projects )
+   if "all" in options and "onlyComplete" in options:
+      raise RuntimeError( "Cannot combine options all and onlyComplete" )
+   if "onlyComplete" in options:
+      tasks = [ task for task in tasks if task.complete ]
+   elif not "all" in options:
+      tasks = [ task for task in tasks if not task.complete ]
    match = []
    for task in tasks:
       for criterion in criteria.union( projectCriteria ):
@@ -204,8 +194,7 @@ def getMatchingTasks( taskApi, options, tags, criteria, projectCriteria ):
          match.append( task )
    return match
 
-def getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                     completionFilter=filterAll ):
+def getMatchingTask( taskApi, options, tags, criteria, projectCriteria ):
    tasks = getMatchingTasks( taskApi, options, tags, criteria, projectCriteria )
    if len( tasks ) != 1:
       tasks = completionFilter( tasks )
@@ -230,16 +219,14 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
       # Ensure items with due dates are at the top and in order
       for task in sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) ):
          if task.project.title == project.title:
-            if "all" in options or not task.complete:
-               printTask( task, options, outfile=outfile )
+            printTask( task, options, outfile=outfile )
 
 def doTaskList( taskApi, options, tags, criteria, projectCriteria, words, args ):
    tasks = getMatchingTasks( taskApi, options, tags, criteria, projectCriteria )
    printTasksInProjects( None, tasks, options )
 
 def doTaskRename( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterIncomplete )
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    if not words:
       raise RuntimeError( "No new title given (use -- to complete criteria)" )
    task.title = ' '.join( words )
@@ -247,13 +234,11 @@ def doTaskRename( taskApi, options, tags, criteria, projectCriteria, words, args
    taskApi.invalidateCache( task )
 
 def doTaskEdit( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterIncomplete )
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    raise NotImplementedError( "doTasksEdit" )
 
 def doTaskTag( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterIncomplete )
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    # TODO: Add @TAG criteria, remove @-TAG criteria
    raise NotImplementedError( "doTasksEdit" )
 
@@ -303,24 +288,22 @@ def doTasksOrder( taskApi, options, tags, criteria, projectCriteria, words, args
       taskApi.invalidateCache( item )
 
 def doTaskDone( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterIncomplete )
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    task.complete = True
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
    printTask( task, options )
 
 def doTaskUndo( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterComplete )
+   options[ "onlyComplete" ] = True
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    task.complete = False
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
    printTask( task, options )
 
 def doTaskDelete( taskApi, options, tags, criteria, projectCriteria, words, args ):
-   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria,
-                           completionFilter=filterIncomplete )
+   task = getMatchingTask( taskApi, options, tags, criteria, projectCriteria )
    printTask( task, options )
    taskApi.invalidateCache( task.project )
    taskApi.deleteTask( task )

@@ -27,7 +27,7 @@ COMMAND:
     order  - Bulk move / re-order tasks
 
 OPTION:
-    +TAG            - A tag
+    @TAG            - A tag
     project:PROJECT - Work on PROJECT, rather than the default (also p:PROJECT)
     -P or -p        - Operate at whole-project level
     -f              - Apply operation without confirmation
@@ -76,6 +76,7 @@ def main( argv ):
          "rename" : doTaskRename,
          "done" : doTaskDone,
          "undo" : doTaskUndo,
+         "tag" : doTaskTag,
          "delete" : doTaskDelete,
          "project-add" : doProjectAdd,
          "project-list" : doProjectList,
@@ -148,7 +149,6 @@ def getMatchingProject( taskApi, specifiedProject ):
    if len( match ) != 1:
       raise RuntimeError( "Matched %d project(s)" % len( match ) )
    return match[ 0 ]
-
 
 def doTaskAdd( taskApi, options, tags, words, specifiedProject, args ):
    if not specifiedProject:
@@ -232,6 +232,12 @@ def doTaskEdit( taskApi, options, tags, words, specifiedProject, args ):
                            completionFilter=filterIncomplete )
    raise NotImplementedError( "doTasksEdit" )
 
+def doTaskTag( taskApi, options, tags, words, specifiedProject, args ):
+   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+                           completionFilter=filterIncomplete )
+   # TODO: Add @TAG words, remove @-TAG words
+   raise NotImplementedError( "doTasksEdit" )
+
 def doTasksOrder( taskApi, options, tags, words, specifiedProject, args ):
    if options or tags or words:
       raise RuntimeError( "order: takes no arguments" )
@@ -260,6 +266,7 @@ def doTasksOrder( taskApi, options, tags, words, specifiedProject, args ):
                toComplete.add( task )
             if task.project.title != project.title:
                toReparent.add( ( task, task.project, project ) )
+         # TODO add/remove tags
          elif re.match( r"[A-Za-z0-9_]", line ):
             project = projectByName[ line.strip() ]
    toInvalidate = set()

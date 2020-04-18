@@ -27,11 +27,11 @@ class Task:
       completeMark = "[X]" if self.complete else "[ ]"
       return self.shortId + " " + completeMark + " " + str( self )
 
-class TaskMatcher():
+class Matcher():
    def match( self, task ):
-      NotImplementedError( "must subclass TaskMatcher" )
+      NotImplementedError( "must subclass Task.Matcher" )
 
-class TaskWordMatcher( TaskMatcher ):
+class WordMatcher( Matcher ):
    def __init__( self, word ):
       self.word = word
 
@@ -40,7 +40,7 @@ class TaskWordMatcher( TaskMatcher ):
          return True
       return re.search( self.word, task.title, flags=re.IGNORECASE )
 
-class TaskDueMatcher( TaskMatcher ):
+class DueMatcher( Matcher ):
    def __init__( self, due ):
       if due[ 0 : 2 ] == "+=" or due[ 0 : 2 ] == "=+":
          self.dueRelative = "onOrAfter"

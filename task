@@ -69,7 +69,7 @@ def main( argv ):
    options = {}
    tags = set()
    words = []
-   criteria = []
+   criteria = set()
    command = None
    projectCriteria = set()
    args = { "tempdir" : tempdir.name }
@@ -115,14 +115,14 @@ def main( argv ):
       elif arg[ 0 ] == '+':
          tags.put( arg[ 1: ] )
       elif re.match( r"d(ue)?:", arg ):
-         criteria.append( Task.DueMatcher( arg[ arg.index( ":" )+1 : ] ) )
+         criteria.add( Task.DueMatcher( arg[ arg.index( ":" )+1 : ] ) )
       elif re.match( r"p(roject)?:", arg ):
          projectCriteria.add( Project.WordMatcher( arg[ arg.index( ":" )+1 : ] ) )
       elif command:
          if wordMatchersComplete:
             words.append( arg )
          else:
-            criteria.append( Task.WordMatcher( arg ) )
+            criteria.add( Task.WordMatcher( arg ) )
       else:
          command = arg
          if command == "add":
@@ -191,11 +191,11 @@ def filterIncomplete( tasks ):
    return tasks
 
 def getMatchingTasks( taskApi, options, tags, criteria, projectCriteria ):
-   projects = getMatchingProjects( taskApi, options, projectCriteria )
+   projects = taskApi.getProjects()
    tasks = taskApi.getTasks( projects )
    match = []
    for task in tasks:
-      for criterion in criteria:
+      for criterion in criteria.union( projectCriteria ):
          if not criterion.match( task ):
             break
       else:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import Task
 
 class Project:
    def __init__( self, title ):
@@ -20,7 +21,11 @@ class WordMatcher( Matcher ):
    def __init__( self, word ):
       self.word = word
 
-   def match( self, project ):
+   def match( self, projectOrTask ):
+      if isinstance( projectOrTask, Task.Task ):
+         project = projectOrTask.project
+      else:
+         project = projectOrTask
       if self.word == project.shortId:
          return True
       return re.search( self.word, project.title, flags=re.IGNORECASE )

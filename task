@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
 import os
 import re
 import subprocess
@@ -28,6 +29,7 @@ COMMAND:
 
 OPTION:
     @TAG            - A tag
+    due:TIME        - A due date (also d:TIME)
     project:PROJECT - Work on PROJECT, rather than the default (also p:PROJECT)
     -P or -p        - Operate at whole-project level
     -f              - Apply operation without confirmation
@@ -66,7 +68,7 @@ def main( argv ):
       raise RuntimeError( "no credentials file - see README.md#app-authentication",
                           appCredentialsFile )
 
-   options = set()
+   options = {}
    tags = set()
    words = []
    command = None
@@ -105,11 +107,30 @@ def main( argv ):
    for arg in sys.argv:
       if re.match( r"-", arg ):
          if arg in optionMap:
-            options.add( optionMap[ arg ] )
+            options[ optionMap[ arg ] ] = True
          else:
             print( "warning: option not recognised: %s" % arg, file=sys.stderr )
       elif arg[ 0 ] == '+':
          tags.put( arg[ 1: ] )
+      elif re.match( r"d(ue)?:", arg ):
+         dueDate = arg[ arg.index( ":" )+1 : ]
+         if dueDate[ 0 ] == "+":
+            options[ "dueRelative" ] = "after"
+            dueDate = dueDate[ 1: ]
+         elif dueDate[ 0 ] == "-":
+            options[ "dueRelative" ] = "before"
+            dueDate = dueDate[ 1: ]
+         elif dueDate[ 0 ] == "=":
+            options[ "dueRelative" ] = "on"
+            dueDate = dueDate[ 1: ]
+         else:
+            options[ "dueRelative" ] = "on"
+         if dueDate == "today" or dueDate == "now":
+            now = datetime.now()
+            dueDate = now.strftime( "%Y-%m-%d" )
+         elif not re.match( "[0-9]{4}-[0-9]{2}-[0-9]{2}$", dueDate ):
+            raise RuntimeError( "due format must be due:[+-=]yyyy-mm-dd" )
+         options[ "due" ] = dueDate
       elif re.match( r"p(roject)?:", arg ):
          projectName = arg[ arg.index( ":" ) + 1 : ]
          specifiedProject.add( projectName.lower() )
@@ -179,6 +200,17 @@ def getMatchingTasks( taskApi, options, tags, words, specifiedProject ):
    tasks = taskApi.getTasks( projects )
    match = []
    for task in tasks:
+      if "due" in options:
+         due = task.apiObject.get( 'due' )
+         if not due:
+            continue
+         due = due[ :10 ]
+         if options[ "dueRelative" ] == "before" and due >= options[ "due" ]:
+            continue
+         if options[ "dueRelative" ] == "after" and due <= options[ "due" ]:
+            continue
+         if options[ "dueRelative" ] == "on" and due != options[ "due" ]:
+            continue
       for word in words:
          if ( word != task.shortId and
                not re.search( word, task.title, flags=re.IGNORECASE ) ):

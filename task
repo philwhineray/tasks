@@ -35,7 +35,7 @@ OPTION:
     -f              - Apply operation without confirmation
     -v              - Verbose (e.g. include notes in list)
     -a              - All (e.g. include completed tasks in list)
-    title:TITLE     - New title
+    --              - No more simple word matchers follow (e.g. for rename)
 
 WORD:
     Numeric: task ID
@@ -105,9 +105,12 @@ def main( argv ):
       for alias in aliasList:
          commandMap[ alias ] = commandMap[ commandToAlias ]
 
+   wordMatchersComplete = False
    for arg in sys.argv:
       if re.match( r"-", arg ):
-         if arg in optionMap:
+         if arg == "--":
+            wordMatchersComplete = True
+         elif arg in optionMap:
             options[ optionMap[ arg ] ] = True
          else:
             print( "warning: option not recognised: %s" % arg, file=sys.stderr )
@@ -135,15 +138,15 @@ def main( argv ):
       elif re.match( r"p(roject)?:", arg ):
          projectName = arg[ arg.index( ":" ) + 1 : ]
          specifiedProject.add( projectName.lower() )
-      elif re.match( r"t(itle)?:", arg ):
-         args[ "newTitle" ] = arg[ arg.index( ":" )+1 : ]
       elif command:
-         if command in ( "add", "rename" ):
+         if wordMatchersComplete:
             words.append( arg )
          else:
             criteria.append( TaskWordMatcher( arg ) )
       else:
          command = arg
+         if command == "add":
+            wordMatchersComplete = True
 
    if "project" in options and not re.match( "project-", command ):
       command = "project-" + command
@@ -260,10 +263,9 @@ def doTaskList( taskApi, options, tags, criteria, specifiedProject, words, args 
 def doTaskRename( taskApi, options, tags, criteria, specifiedProject, words, args ):
    task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
-   newTitle = args.get( "newTitle" )
-   if not newTitle:
-      raise RuntimeError( "No new title given" )
-   task.title = newTitle
+   if not words:
+      raise RuntimeError( "No new title given (use -- to complete criteria)" )
+   task.title = ' '.join( words )
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
 

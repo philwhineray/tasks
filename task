@@ -56,10 +56,15 @@ def main( argv ):
 
    configDir = os.environ[ 'HOME' ] + '/.config/tasks'
    cacheDir = os.environ[ 'HOME' ] + '/.cache/tasks'
+   appCredentialsFile = configDir + GoogleTasks.appCredentialsFileName
+
    if not os.path.exists( configDir ):
       os.makedirs( configDir )
    if not os.path.exists( cacheDir ):
       os.makedirs( cacheDir )
+   if not os.path.exists( appCredentialsFile ):
+      raise RuntimeError( "no credentials file - see README.md#app-authentication",
+                          appCredentialsFile )
 
    options = set()
    tags = set()

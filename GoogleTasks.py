@@ -21,6 +21,9 @@ class GoogleTasks:
    # SCOPES = [ 'https://www.googleapis.com/auth/tasks.readonly' ]
    SCOPES = [ 'https://www.googleapis.com/auth/tasks' ]
 
+   appCredentialsFileName = '/app-credentials.json'
+   userCredentialsFileName = '/user-token.pickle'
+
    def __init__( self, configDir, cacheDir ):
       self.creds = None
       self.service = None
@@ -30,11 +33,11 @@ class GoogleTasks:
    def authenticate( self ):
       self.creds = None
 
-      appCredentialsFile = self.configDir + '/app-credentials.json'
-      userCredentialsFile = self.configDir + '/user-token.pickle'
+      appCredentialsFile = self.configDir + self.appCredentialsFileName
+      userCredentialsFile = self.configDir + self.userCredentialsFileName
 
       if not os.path.exists( appCredentialsFile ):
-         raise Exception( "no credentials file", appCredentialsFile )
+         raise RuntimeError( "no credentials file", appCredentialsFile )
 
       # The userCredentialsFile stores the user's access and refresh tokens,
       # and is created automatically when the authorization flow completes

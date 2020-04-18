@@ -166,14 +166,6 @@ def getMatchingProject( taskApi, options, projectCriteria ):
       raise RuntimeError( "Matched %d project(s)" % len( match ) )
    return match[ 0 ]
 
-def doTaskAdd( taskApi, options, tags, criteria, words, args ):
-   if not projectCriteria:
-      projectCriteria = [ Project.WordMatcher( "inbox" ) ]
-   project = getMatchingProject( taskApi, options, projectCriteria )
-   task = Task.Task( project, " ".join( words ) )
-   taskApi.addTask( task )
-   taskApi.invalidateCache( task )
-
 def getMatchingTasks( taskApi, options, tags, criteria, projectCriteria ):
    projects = taskApi.getProjects()
    tasks = taskApi.getTasks( projects )
@@ -220,6 +212,14 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
       for task in sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) ):
          if task.project.title == project.title:
             printTask( task, options, outfile=outfile )
+
+def doTaskAdd( taskApi, options, tags, criteria, projectCriteria, words, args ):
+   if not projectCriteria:
+      projectCriteria = [ Project.WordMatcher( "inbox" ) ]
+   project = getMatchingProject( taskApi, options, projectCriteria )
+   task = Task.Task( project, " ".join( words ) )
+   taskApi.addTask( task )
+   taskApi.invalidateCache( task )
 
 def doTaskList( taskApi, options, tags, criteria, projectCriteria, words, args ):
    tasks = getMatchingTasks( taskApi, options, tags, criteria, projectCriteria )

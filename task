@@ -10,7 +10,7 @@ import time
 
 from GoogleTasks import GoogleTasks
 from Project import Project
-from Task import Task
+from Task import Task, TaskWordMatcher
 
 help = """
 Usage: task COMMAND [OPTION...] WORDS...
@@ -71,6 +71,7 @@ def main( argv ):
    options = {}
    tags = set()
    words = []
+   criteria = []
    command = None
    specifiedProject = set()
    args = { "tempdir" : tempdir.name }
@@ -137,7 +138,10 @@ def main( argv ):
       elif re.match( r"t(itle)?:", arg ):
          args[ "newTitle" ] = arg[ arg.index( ":" )+1 : ]
       elif command:
-         words.append( arg )
+         if command in ( "add", "rename" ):
+            words.append( arg )
+         else:
+            criteria.append( TaskWordMatcher( arg ) )
       else:
          command = arg
 
@@ -158,7 +162,7 @@ def main( argv ):
    taskApi = GoogleTasks( configDir, cacheDir )
    taskApi.authenticate()
 
-   commandMap[ command ]( taskApi, options, tags, words, specifiedProject, args )
+   commandMap[ command ]( taskApi, options, tags, criteria, specifiedProject, words, args )
 
 def getMatchingProjects( taskApi, specifiedProject ):
    projects = taskApi.getProjects()
@@ -176,7 +180,7 @@ def getMatchingProject( taskApi, specifiedProject ):
       raise RuntimeError( "Matched %d project(s)" % len( match ) )
    return match[ 0 ]
 
-def doTaskAdd( taskApi, options, tags, words, specifiedProject, args ):
+def doTaskAdd( taskApi, options, tags, criteria, specifiedProject, words, args ):
    if not specifiedProject:
       specifiedProject = [ "inbox" ]
    project = getMatchingProject( taskApi, specifiedProject )
@@ -195,7 +199,7 @@ def filterIncomplete( tasks ):
    #return [ task for task in tasks if not task.complete ]
    return tasks
 
-def getMatchingTasks( taskApi, options, tags, words, specifiedProject ):
+def getMatchingTasks( taskApi, options, tags, criteria, specifiedProject ):
    projects = getMatchingProjects( taskApi, specifiedProject )
    tasks = taskApi.getTasks( projects )
    match = []
@@ -211,9 +215,8 @@ def getMatchingTasks( taskApi, options, tags, words, specifiedProject ):
             continue
          if options[ "dueRelative" ] == "on" and due != options[ "due" ]:
             continue
-      for word in words:
-         if ( word != task.shortId and
-               not re.search( word, task.title, flags=re.IGNORECASE ) ):
+      for criterion in criteria:
+         if not criterion.match( task ):
             break
       else:
          if "debug" in options:
@@ -221,9 +224,9 @@ def getMatchingTasks( taskApi, options, tags, words, specifiedProject ):
          match.append( task )
    return match
 
-def getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                      completionFilter=filterAll ):
-   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+   tasks = getMatchingTasks( taskApi, options, tags, criteria, specifiedProject )
    if len( tasks ) != 1:
       tasks = completionFilter( tasks )
    if len( tasks ) != 1:
@@ -250,12 +253,12 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
             if "all" in options or not task.complete:
                printTask( task, options, outfile=outfile )
 
-def doTaskList( taskApi, options, tags, words, specifiedProject, args ):
-   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+def doTaskList( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   tasks = getMatchingTasks( taskApi, options, tags, criteria, specifiedProject )
    printTasksInProjects( None, tasks, options )
 
-def doTaskRename( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskRename( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
    newTitle = args.get( "newTitle" )
    if not newTitle:
@@ -264,22 +267,22 @@ def doTaskRename( taskApi, options, tags, words, specifiedProject, args ):
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
 
-def doTaskEdit( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskEdit( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
    raise NotImplementedError( "doTasksEdit" )
 
-def doTaskTag( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskTag( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
-   # TODO: Add @TAG words, remove @-TAG words
+   # TODO: Add @TAG criteria, remove @-TAG criteria
    raise NotImplementedError( "doTasksEdit" )
 
-def doTasksOrder( taskApi, options, tags, words, specifiedProject, args ):
-   if options or tags or words:
+def doTasksOrder( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   if options or tags or criteria:
       raise RuntimeError( "order: takes no arguments" )
    projects = getMatchingProjects( taskApi, specifiedProject )
-   tasks = getMatchingTasks( taskApi, options, tags, words, specifiedProject )
+   tasks = getMatchingTasks( taskApi, options, tags, criteria, specifiedProject )
    taskById = {}
    for task in tasks:
       taskById[ task.shortId ] = task
@@ -320,34 +323,34 @@ def doTasksOrder( taskApi, options, tags, words, specifiedProject, args ):
    for item in toInvalidate:
       taskApi.invalidateCache( item )
 
-def doTaskDone( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskDone( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
    task.complete = True
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
    printTask( task, options )
 
-def doTaskUndo( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskUndo( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterComplete )
    task.complete = False
    taskApi.updateTask( task )
    taskApi.invalidateCache( task )
    printTask( task, options )
 
-def doTaskDelete( taskApi, options, tags, words, specifiedProject, args ):
-   task = getMatchingTask( taskApi, options, tags, words, specifiedProject,
+def doTaskDelete( taskApi, options, tags, criteria, specifiedProject, words, args ):
+   task = getMatchingTask( taskApi, options, tags, criteria, specifiedProject,
                            completionFilter=filterIncomplete )
    printTask( task, options )
    taskApi.invalidateCache( task.project )
    taskApi.deleteTask( task )
 
-def doProjectAdd( taskApi, options, tags, words, specifiedProject, args ):
+def doProjectAdd( taskApi, options, tags, criteria, specifiedProject, words, args ):
    project = Project( ' '.join( words ) )
    taskApi.addProject( project )
 
-def doProjectList( taskApi, options, tags, words, specifiedProject, args ):
+def doProjectList( taskApi, options, tags, criteria, specifiedProject, words, args ):
    projects = getMatchingProjects( taskApi, specifiedProject )
    for project in projects:
       if "debug" in options:
@@ -355,14 +358,14 @@ def doProjectList( taskApi, options, tags, words, specifiedProject, args ):
       else:
          print( "%s:" % project.shortId, project )
 
-def doProjectRename( taskApi, options, tags, words, specifiedProject, args ):
+def doProjectRename( taskApi, options, tags, criteria, specifiedProject, words, args ):
    project = getMatchingProject( taskApi, specifiedProject )
-   if len( words ) < 1:
+   if len( criteria ) < 1:
       raise RuntimeError( "No new name given" )
    project.title = ' '.join( words )
    taskApi.updateProject( project )
 
-def doProjectDelete( taskApi, options, tags, words, specifiedProject, args ):
+def doProjectDelete( taskApi, options, tags, criteria, specifiedProject, words, args ):
    def delProject( project, force ):
       if not force:
          print( "delete %s: %s? [y/N]" % ( project.shortId, project ), file=sys.stderr )

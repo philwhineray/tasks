@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import re
+
 class Task:
    def __init__( self, project, title ):
       self.shortId = None
@@ -23,3 +25,16 @@ class Task:
    def lineString( self ):
       completeMark = "[X]" if self.complete else "[ ]"
       return self.shortId + " " + completeMark + " " + str( self )
+
+class TaskMatcher():
+   def match( self, task ):
+      NotImplementedError( "must subclass TaskMatcher" )
+
+class TaskWordMatcher( TaskMatcher ):
+   def __init__( self, word ):
+      self.word = word
+
+   def match( self, task ):
+      if self.word == task.shortId:
+         return True
+      return re.search( self.word, task.title, flags=re.IGNORECASE )

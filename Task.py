@@ -35,19 +35,32 @@ class TaskMatcher( Matcher.Matcher ):
 
 class WordMatcher( TaskMatcher ):
    def __init__( self, word ):
+      super().__init__()
       self.word = word
 
    def match( self, projectOrTask ):
+      if self.debug:
+         print( "Task.Word", "match?", self.word )
       if TaskMatcher.isTask( projectOrTask ):
          task = projectOrTask
       else:
+         if self.debug:
+            print( "Task.Word", "no match" )
          return False
       if self.word == task.shortId:
-         return True
-      return re.search( self.word, task.title, flags=re.IGNORECASE )
+         result = True
+      else:
+         result = re.search( self.word, task.title, flags=re.IGNORECASE )
+      if self.debug:
+         if result:
+            print( "Task.Word", "match" )
+         else:
+            print( "Task.Word", "no match" )
+      return result
 
 class DueMatcher( TaskMatcher ):
    def __init__( self, due ):
+      super().__init__()
       if due[ 0 : 2 ] == "+=" or due[ 0 : 2 ] == "=+":
          self.dueRelative = "onOrAfter"
          dueDate = due[ 2: ]
@@ -76,20 +89,33 @@ class DueMatcher( TaskMatcher ):
       self.due = dueDate
 
    def match( self, projectOrTask ):
+      if self.debug:
+         print( "Due", "match?", self.dueRelative, self.due )
       if TaskMatcher.isTask( projectOrTask ):
          task = projectOrTask
       else:
+         if self.debug:
+            print( "Due", "no match" )
          return False
       due = task.apiObject.get( 'due' )
       if not due:
+         if self.debug:
+            print( "Due", "no match" )
          return False
       due = due[ :10 ]
       if self.dueRelative == "before":
-         return due < self.due
+         result = due < self.due
       elif self.dueRelative == "onOrBefore":
-         return due <= self.due
+         result = due <= self.due
       elif self.dueRelative == "after":
-         return due > self.due
+         result = due > self.due
       elif self.dueRelative == "onOrAfter":
-         return due >= self.due
-      return due == self.due
+         result = due >= self.due
+      else:
+         result = due == self.due
+      if self.debug:
+         if result:
+            print( "Due", "match" )
+         else:
+            print( "Due", "no match" )
+      return result

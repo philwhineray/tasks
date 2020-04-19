@@ -126,10 +126,20 @@ def main( argv ):
 
    command = argv.pop( 0 )
    wordMatchersComplete = command == "add"
+   criteria.debug = "debug" in options
 
    for arg in argv:
       if arg == '--':
          wordMatchersComplete = True
+      elif arg == 'or' or arg == 'OR':
+         if isinstance( criteria.parent, Matcher.Or ):
+            orCriteria = criteria.parent
+         else:
+            orCriteria = Matcher.Or()
+            orCriteria.debug = "debug" in options
+            orCriteria.add( criteria )
+         criteria = Matcher.And()
+         orCriteria.add(criteria )
       elif re.match( r"d(ue)?:", arg ):
          criteria.add( Task.DueMatcher( arg[ arg.index( ":" )+1 : ] ) )
       elif re.match( r"p(roject)?:", arg ):
@@ -140,6 +150,9 @@ def main( argv ):
          criteria.add( Project.WordMatcher( arg ) )
       else:
          criteria.add( Task.WordMatcher( arg ) )
+
+   while criteria.parent:
+      criteria = criteria.parent
 
    if "project" in options and not re.match( "project-", command ):
       command = "project-" + command
@@ -165,6 +178,9 @@ def getMatchingProjects( taskApi, options, criteria ):
    projects = taskApi.getProjects()
    match = []
    for project in projects:
+      if "debug" in options:
+         print( "" )
+         print( "Matching...", project )
       if criteria.match( project ):
          if "debug" in options:
             print( "%s:" % project.shortId, project.apiObject )
@@ -188,6 +204,9 @@ def getMatchingTasks( taskApi, options, criteria ):
       tasks = [ task for task in tasks if not task.complete ]
    match = []
    for task in tasks:
+      if "debug" in options:
+         print( "" )
+         print( "Matching...", task )
       if criteria.match( task ):
          if "debug" in options:
             print( "%s:" % task.shortId, task.apiObject )

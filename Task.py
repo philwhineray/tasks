@@ -3,6 +3,8 @@
 from datetime import datetime
 import re
 
+import Matcher
+
 class Task:
    def __init__( self, project, title ):
       self.shortId = None
@@ -27,20 +29,24 @@ class Task:
       completeMark = "[X]" if self.complete else "[ ]"
       return self.shortId + " " + completeMark + " " + str( self )
 
-class Matcher():
-   def match( self, task ):
-      NotImplementedError( "must subclass Task.Matcher" )
+class TaskMatcher( Matcher.Matcher ):
+   def isTask( projectOrTask ):
+      return isinstance( projectOrTask, Task )
 
-class WordMatcher( Matcher ):
+class WordMatcher( TaskMatcher ):
    def __init__( self, word ):
       self.word = word
 
-   def match( self, task ):
+   def match( self, projectOrTask ):
+      if TaskMatcher.isTask( projectOrTask ):
+         task = projectOrTask
+      else:
+         return False
       if self.word == task.shortId:
          return True
       return re.search( self.word, task.title, flags=re.IGNORECASE )
 
-class DueMatcher( Matcher ):
+class DueMatcher( TaskMatcher ):
    def __init__( self, due ):
       if due[ 0 : 2 ] == "+=" or due[ 0 : 2 ] == "=+":
          self.dueRelative = "onOrAfter"
@@ -69,7 +75,11 @@ class DueMatcher( Matcher ):
 
       self.due = dueDate
 
-   def match( self, task ):
+   def match( self, projectOrTask ):
+      if TaskMatcher.isTask( projectOrTask ):
+         task = projectOrTask
+      else:
+         return False
       due = task.apiObject.get( 'due' )
       if not due:
          return False

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import re
-import Task
+import Matcher
 
 class Project:
    def __init__( self, title ):
@@ -13,19 +13,19 @@ class Project:
    def __str__( self ):
       return self.title
 
-class Matcher():
-   def match( self, task ):
-      NotImplementedError( "must subclass Project.Matcher" )
+class ProjectMatcher( Matcher.Matcher ):
+   def isProject( projectOrTask ):
+      return isinstance( projectOrTask, Project )
 
-class WordMatcher( Matcher ):
+class WordMatcher( ProjectMatcher ):
    def __init__( self, word ):
       self.word = word
 
    def match( self, projectOrTask ):
-      if isinstance( projectOrTask, Task.Task ):
-         project = projectOrTask.project
-      else:
+      if ProjectMatcher.isProject( projectOrTask ):
          project = projectOrTask
+      else:
+         project = projectOrTask.project
       if self.word == project.shortId:
          return True
       return re.search( self.word, project.title, flags=re.IGNORECASE )

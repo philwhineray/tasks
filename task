@@ -216,8 +216,6 @@ def getMatchingTasks( taskApi, options, criteria ):
 def getMatchingTask( taskApi, options, criteria ):
    tasks = getMatchingTasks( taskApi, options, criteria )
    if len( tasks ) != 1:
-      tasks = completionFilter( tasks )
-   if len( tasks ) != 1:
       raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
    return tasks[ 0 ]
 
@@ -243,11 +241,11 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
 def splitCriteria( criteria ):
    projectCriteria = set()
    taskCriteria = set()
-   for criterion in criteria:
-      if isinstance( criterion, Task.Matcher ):
-         taskCriteria.add( criterion )
-      else:
+   for criterion in criteria.matchers:
+      if isinstance( criterion, Project.ProjectMatcher ):
          projectCriteria.add( criterion )
+      else:
+         taskCriteria.add( criterion )
    return projectCriteria, taskCriteria
 
 def doTaskAdd( taskApi, options, criteria, words, args ):

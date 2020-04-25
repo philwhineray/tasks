@@ -29,6 +29,7 @@ class GoogleTasks:
          super().__init__( apiObject[ 'title' ] )
          self.service = service
          self.apiObject = apiObject
+         self.apiId = apiObject[ 'id' ]
 
       def save( self ):
          apiMap = {
@@ -41,8 +42,8 @@ class GoogleTasks:
                updated = True
          if updated:
             self.service.tasklists().update(
-                  tasklist=self.apiObject[ 'id' ],
-                      body=self.apiObject ).execute()
+                  tasklist=self.apiId,
+                  body=self.apiObject ).execute()
 
       def deleteProject( self, project ):
          self.service.tasklists().delete(
@@ -55,7 +56,25 @@ class GoogleTasks:
          super().__init__( project, apiObject[ 'title' ] )
          self.service = service
          self.apiObject = apiObject
+         self.apiId = apiObject[ 'id' ]
          self.complete = self.apiObject[ 'status' ] == "completed"
+
+      def save( self ):
+         status = "completed" if self.complete else "needsAction"
+         apiMap = {
+            'title': self.title,
+            'status': status,
+         }
+         updated = False
+         for key, value in apiMap.items():
+            if self.apiObject[ key ] != value:
+               self.apiObject[ key ] = value
+               updated = True
+         if updated:
+            self.service.tasks().update(
+                  tasklist=self.project.apiId,
+                  task=self.apiId,
+                  body=self.apiObject ).execute()
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None
@@ -98,11 +117,6 @@ class GoogleTasks:
 
       self.service = build( 'tasks', 'v1', credentials=self.creds )
 
-   def fromTask( self, task ):
-      rawItem = task.apiObject
-      rawItem[ 'title' ] = task.title
-      rawItem[ 'status' ] = "completed" if task.complete else "needsAction"
-
    def getProjects( self ):
       first = True
       nextPage = None
@@ -118,25 +132,19 @@ class GoogleTasks:
       return projects
 
    def addProject( self, project ):
-      project = {
+      body = {
         "title": project.title,
       }
-      apiObject = self.service.tasklists().insert( body=project ).execute()
+      apiObject = self.service.tasklists().insert( body=body ).execute()
       return GoogleTasks.Project( self.service, apiObject )
 
-   def updateTask( self, task ):
-      self.fromTask( task )
-      body = task.apiObject
-      projectId = task.project.apiObject[ 'id' ]
-      taskId = task.apiObject[ 'id' ]
-      self.service.tasks().update( tasklist=projectId, task=taskId, body=body ).execute()
-
    def addTask( self, task ):
-      task.apiObject = {}
-      self.fromTask( task )
-      body = task.apiObject
-      projectId = task.project.apiObject[ 'id' ]
-      self.service.tasks().insert( tasklist=projectId, body=body ).execute()
+      status = "completed" if task.complete else "needsAction"
+      body = {
+        "title": task.title,
+        "status": status,
+      }
+      self.service.tasks().insert( tasklist=task.project.apiId, body=body ).execute()
 
    def deleteTask( self, task ):
       self.fromTask( task )

@@ -268,7 +268,7 @@ def doTaskRename( taskApi, options, criteria, words, args ):
    if not words:
       raise RuntimeError( "No new title given (use -- to complete criteria)" )
    task.title = ' '.join( words )
-   taskApi.updateTask( task )
+   task.save()
    taskApi.invalidateCache( task )
 
 def doTaskEdit( taskApi, options, criteria, words, args ):
@@ -315,7 +315,7 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
    toInvalidate = set()
    for task in toComplete:
       task.complete = True
-      taskApi.updateTask( task )
+      task.save()
       toInvalidate.add( task )
    for task, fromProject, toProject in toReparent:
       taskApi.moveTask( task, toProject )
@@ -329,7 +329,7 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = True
-   taskApi.updateTask( task )
+   task.save()
    taskApi.invalidateCache( task )
    printTask( task, options )
 
@@ -337,7 +337,7 @@ def doTaskUndo( taskApi, options, criteria, words, args ):
    options[ "onlyComplete" ] = True
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = False
-   taskApi.updateTask( task )
+   task.save()
    taskApi.invalidateCache( task )
    printTask( task, options )
 

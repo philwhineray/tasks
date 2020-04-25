@@ -14,7 +14,7 @@ from google.auth.exceptions import RefreshError
 
 import Project
 from ShortId import updateShortIds
-from Task import Task
+import Task
 
 class GoogleTasks:
    # If modifying these scopes, any pickled tokens will need removing
@@ -47,6 +47,15 @@ class GoogleTasks:
       def deleteProject( self, project ):
          self.service.tasklists().delete(
                tasklist=self.apiObject[ 'id' ] ).execute()
+
+   class Task( Task.Task ):
+      def __init__( self, service, project, apiObject ):
+         if not isinstance( project, GoogleTasks.Project ):
+            raise RuntimeError( "cannot add Google Task to non-Google project" )
+         super().__init__( project, apiObject[ 'title' ] )
+         self.service = service
+         self.apiObject = apiObject
+         self.complete = self.apiObject[ 'status' ] == "completed"
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None
@@ -88,13 +97,6 @@ class GoogleTasks:
                pickle.dump( self.creds, token )
 
       self.service = build( 'tasks', 'v1', credentials=self.creds )
-
-   def toTask( self, project, rawItem ):
-      task = Task( project, rawItem[ 'title' ] )
-      task.complete = rawItem[ 'status' ] == "completed"
-      task.apiRef = self
-      task.apiObject = rawItem
-      return task
 
    def fromTask( self, task ):
       rawItem = task.apiObject
@@ -153,9 +155,9 @@ class GoogleTasks:
       self.service.tasks().delete( tasklist=projectId, task=taskId ).execute()
 
    def invalidateCache( self, taskOrProject ):
-      if isinstance( taskOrProject, Task ):
+      if isinstance( taskOrProject, Task.Task ):
          projectId = taskOrProject.project.apiObject[ 'id' ]
-      elif isinstance( taskOrProject, Project ):
+      elif isinstance( taskOrProject, Project.Project ):
          projectId = taskOrProject.apiObject[ 'id' ]
       else:
          assert False, "invalidateCache works on Task or Project only"
@@ -187,8 +189,8 @@ class GoogleTasks:
          result = self.service.tasks().list( maxResults=100, tasklist=projectId,
                                              pageToken=nextPage, showHidden=True,
                                              showCompleted=True ).execute()
-         for rawItem in result.get( 'items', [] ):
-            tasks.append( self.toTask( project, rawItem ) )
+         for apiObject in result.get( 'items', [] ):
+            tasks.append( GoogleTasks.Task( self.service, project, apiObject ) )
          nextPage = result.get( 'nextPageToken', None )
       with open( taskCacheFile, 'wb' ) as taskCache:
          pickle.dump( tasks, taskCache )

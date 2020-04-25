@@ -8,11 +8,15 @@ import Matcher
 class Task:
    def __init__( self, project, title ):
       self.shortId = None
-      self.apiRef = None
-      self.apiObject = None
       self.project = project
       self.title = title
       self.complete = False
+
+   def save( self ):
+      NotImplementedError( "must subclass Project.Project" )
+
+   def delete( self ):
+      NotImplementedError( "must subclass Project.Project" )
 
    def __str__( self ):
       due = ""

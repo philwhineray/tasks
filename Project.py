@@ -8,14 +8,14 @@ class Project:
       self.shortId = None
       self.title = title
 
-   def __str__( self ):
-      return self.title
-
    def save( self ):
       NotImplementedError( "must subclass Project.Project" )
 
    def delete( self ):
       NotImplementedError( "must subclass Project.Project" )
+
+   def __str__( self ):
+      return self.title
 
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):

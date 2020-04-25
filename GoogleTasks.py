@@ -12,7 +12,7 @@ from google.auth.exceptions import RefreshError
 #   https://developers.google.com/tasks/get_started
 #   https://developers.google.com/tasks/v1/reference/
 
-from Project import Project
+import Project
 from ShortId import updateShortIds
 from Task import Task
 
@@ -23,6 +23,26 @@ class GoogleTasks:
 
    appCredentialsFileName = '/app-credentials.json'
    userCredentialsFileName = '/user-token.pickle'
+
+   class Project( Project.Project ):
+      def __init__( self, service, apiObject  ):
+         super().__init__( apiObject[ 'title' ] )
+         self.service = service
+         self.apiObject = apiObject
+
+      def save( self ):
+         apiMap = {
+            'title': self.title,
+         }
+         updated = False
+         for key, value in apiMap.items():
+            if self.apiObject[ key ] != value:
+               self.apiObject[ key ] = value
+               updated = True
+         if updated:
+            self.service.tasklists().update(
+                  tasklist=self.apiObject[ 'id' ],
+                      body=self.apiObject ).execute()
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None
@@ -65,16 +85,6 @@ class GoogleTasks:
 
       self.service = build( 'tasks', 'v1', credentials=self.creds )
 
-   def toProject( self, rawItem ):
-      project = Project( rawItem[ 'title' ] )
-      project.apiRef = self
-      project.apiObject = rawItem
-      return project
-
-   def fromProject( self, project ):
-      rawItem = project.apiObject
-      rawItem[ 'title' ] = project.title
-
    def toTask( self, project, rawItem ):
       task = Task( project, rawItem[ 'title' ] )
       task.complete = rawItem[ 'status' ] == "completed"
@@ -95,8 +105,8 @@ class GoogleTasks:
          first = False
          result = self.service.tasklists().list( maxResults=100,
                                                  pageToken=nextPage ).execute()
-         for rawItem in result.get( 'items', [] ):
-            projects.append( self.toProject( rawItem ) )
+         for apiObject in result.get( 'items', [] ):
+            projects.append( GoogleTasks.Project( self.service, apiObject ) )
          nextPage = result.get( 'nextPageToken', None )
       updateShortIds( projects, "p" )
       return projects
@@ -105,18 +115,12 @@ class GoogleTasks:
       project = {
         "title": project.title,
       }
-      rawItem = self.service.tasklists().insert( body=project ).execute()
-      return self.toProject( rawItem )
+      apiObject = self.service.tasklists().insert( body=project ).execute()
+      return GoogleTasks.Project( self.service, apiObject )
 
    def deleteProject( self, project ):
       projectId = project.apiObject[ 'id' ]
       self.service.tasklists().delete( tasklist=projectId ).execute()
-
-   def updateProject( self, project ):
-      self.fromProject( project )
-      body = project.apiObject
-      projectId = project.apiObject[ 'id' ]
-      self.service.tasklists().update( tasklist=projectId, body=body ).execute()
 
    def updateTask( self, task ):
       self.fromTask( task )

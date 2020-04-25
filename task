@@ -371,7 +371,7 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
       if not force:
          print( "delete %s: %s? [y/N]" % ( project.shortId, project ), file=sys.stderr )
          return
-      taskApi.deleteProject( project )
+      project.delete()
       print( "deleted: %s: %s" % ( project.shortId, project ), file=sys.stderr )
 
    ( projectCriteria, taskCriteria ) = splitCriteria( criteria )

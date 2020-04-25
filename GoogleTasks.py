@@ -45,7 +45,7 @@ class GoogleTasks:
                   tasklist=self.apiId,
                   body=self.apiObject ).execute()
 
-      def deleteProject( self, project ):
+      def delete( self ):
          self.service.tasklists().delete(
                tasklist=self.apiObject[ 'id' ] ).execute()
 
@@ -75,6 +75,11 @@ class GoogleTasks:
                   tasklist=self.project.apiId,
                   task=self.apiId,
                   body=self.apiObject ).execute()
+
+      def delete( self ):
+         self.service.tasks().delete(
+               tasklist=self.project.apiId,
+               task=self.apiId ).execute()
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None
@@ -145,13 +150,6 @@ class GoogleTasks:
         "status": status,
       }
       self.service.tasks().insert( tasklist=task.project.apiId, body=body ).execute()
-
-   def deleteTask( self, task ):
-      self.fromTask( task )
-      body = task.apiObject
-      projectId = task.project.apiObject[ 'id' ]
-      taskId = task.apiObject[ 'id' ]
-      self.service.tasks().delete( tasklist=projectId, task=taskId ).execute()
 
    def moveTask( self, task, toProject ):
       self.fromTask( task )

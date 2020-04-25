@@ -345,7 +345,7 @@ def doTaskDelete( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    printTask( task, options )
    taskApi.invalidateCache( task.project )
-   taskApi.deleteTask( task )
+   task.delete()
 
 def doProjectAdd( taskApi, options, criteria, words, args ):
    project = Project.Project( ' '.join( words ) )

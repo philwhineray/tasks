@@ -227,7 +227,7 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
       if i > 0: print( "", file=outfile )
       project.print( options=options, outfile=outfile )
       # Ensure items with due dates are at the top and in order
-      for task in sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) ):
+      for task in Task.sort( tasks ):
          if task.project.title == project.title:
             task.print( options=options, outfile=outfile )
 

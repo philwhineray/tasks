@@ -51,6 +51,9 @@ class Task():
       if options and "verbose" in options and self.notes is not None:
          print( "  ", self.notes, file=outfile )
 
+def sort( tasks ):
+   return sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) )
+
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):
       return isinstance( projectOrTask, Task )

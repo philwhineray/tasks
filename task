@@ -48,6 +48,7 @@ optionMap = {
       "-v": "verbose",
       "-a": "all",
       "-z": "debug",
+      "-zm": "debugMatching",
       "-h": "help",
       }
 
@@ -126,7 +127,7 @@ def main( argv ):
 
    command = argv.pop( 0 )
    wordMatchersComplete = command == "add"
-   criteria.debug = "debug" in options
+   criteria.debug = "debugMatching" in options
 
    for arg in argv:
       if arg == '--':
@@ -136,7 +137,7 @@ def main( argv ):
             orCriteria = criteria.parent
          else:
             orCriteria = Matcher.Or()
-            orCriteria.debug = "debug" in options
+            orCriteria.debug = "debugMatching" in options
             orCriteria.add( criteria )
          criteria = Matcher.And()
          orCriteria.add(criteria )
@@ -178,12 +179,12 @@ def getMatchingProjects( taskApi, options, criteria ):
    projects = taskApi.getProjects()
    match = []
    for project in projects:
-      if "debug" in options:
-         print( "" )
-         print( "Matching...", project )
+      if "debugMatching" in options:
+         print( "", file=sys.stderr )
+         print( "Matching...", project, file=sys.stderr )
       if criteria.match( project ):
-         if "debug" in options:
-            print( "%s:" % project.shortId, project.apiObject )
+         if "debugMatching" in options:
+            print( "%s:" % project.shortId, project.apiObject, file=sys.stderr )
          match.append( project )
    return match
 
@@ -204,12 +205,12 @@ def getMatchingTasks( taskApi, options, criteria ):
       tasks = [ task for task in tasks if not task.complete ]
    match = []
    for task in tasks:
-      if "debug" in options:
-         print( "" )
-         print( "Matching...", task )
+      if "debugMatching" in options:
+         print( "", file=sys.stderr )
+         print( "Matching...", task, file=sys.stderr )
       if criteria.match( task ):
-         if "debug" in options:
-            print( "%s:" % task.shortId, task.projectId, task.apiObject )
+         if "debugMatching" in options:
+            print( "%s:" % task.shortId, task.projectId, task.apiObject, file=sys.stderr )
          match.append( task )
    return match
 
@@ -346,7 +347,7 @@ def doProjectList( taskApi, options, criteria, words, args ):
    projects = getMatchingProjects( taskApi, options, criteria )
    for project in projects:
       if "debug" in options:
-         print( "%s:" % project.shortId, project.apiObject )
+         print( "%s:" % project.shortId, project.apiObject, file=sys.stderr )
       else:
          print( "%s:" % project.shortId, project )
 

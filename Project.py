@@ -33,7 +33,7 @@ class WordMatcher( ProjectMatcher ):
 
    def match( self, projectOrTask ):
       if self.debug:
-         print( "Project.Word", "match?", self.word )
+         print( "Project.Word", "match?", self.word, file=sys.stderr )
       if ProjectMatcher.isProject( projectOrTask ):
          project = projectOrTask
       else:
@@ -45,7 +45,7 @@ class WordMatcher( ProjectMatcher ):
          result = re.search( self.word, project.title, flags=re.IGNORECASE )
       if self.debug:
          if result:
-            print( "Project.Word", "match" )
+            print( "Project.Word", "match", file=sys.stderr )
          else:
-            print( "Project.Word", "no match" )
+            print( "Project.Word", "no match", file=sys.stderr )
       return result

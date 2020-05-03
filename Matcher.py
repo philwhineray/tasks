@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import sys
 
 class Matcher():
    def __init__( self ):
@@ -23,25 +24,25 @@ class Group( Matcher ):
 class And( Group ):
    def match( self, projectOrTask ):
       if self.debug:
-         print( "And", "match?" )
+         print( "And", "match?", file=sys.stderr )
       for matcher in self.matchers:
          if not matcher.match( projectOrTask ):
             if self.debug:
-               print( "And", "no match" )
+               print( "And", "no match", file=sys.stderr )
             return False
       if self.debug:
-         print( "And", "match" )
+         print( "And", "match", file=sys.stderr )
       return True
 
 class Or( Group ):
    def match( self, projectOrTask ):
       if self.debug:
-         print( "Or", "match?" )
+         print( "Or", "match?", file=sys.stderr )
       for matcher in self.matchers:
          if matcher.match( projectOrTask ):
             if self.debug:
-               print( "Or", "match" )
+               print( "Or", "match", file=sys.stderr )
             return True
       if self.debug:
-         print( "Or", "no match" )
+         print( "Or", "no match", file=sys.stderr )
       return False

@@ -50,12 +50,12 @@ class WordMatcher( TaskMatcher ):
 
    def match( self, projectOrTask ):
       if self.debug:
-         print( "Task.Word", "match?", self.word )
+         print( "Task.Word", "match?", self.word, file=sys.stderr )
       if TaskMatcher.isTask( projectOrTask ):
          task = projectOrTask
       else:
          if self.debug:
-            print( "Task.Word", "no match" )
+            print( "Task.Word", "no match", file=sys.stderr )
          return False
       if self.word == task.shortId:
          result = True
@@ -63,7 +63,7 @@ class WordMatcher( TaskMatcher ):
          result = re.search( self.word, task.title, flags=re.IGNORECASE )
       if self.debug:
          if result:
-            print( "Task.Word", "match" )
+            print( "Task.Word", "match", file=sys.stderr )
          else:
             print( "Task.Word", "no match" )
       return result
@@ -100,17 +100,17 @@ class DueMatcher( TaskMatcher ):
 
    def match( self, projectOrTask ):
       if self.debug:
-         print( "Due", "match?", self.dueRelative, self.due )
+         print( "Due", "match?", self.dueRelative, self.due, file=sys.stderr )
       if TaskMatcher.isTask( projectOrTask ):
          task = projectOrTask
       else:
          if self.debug:
-            print( "Due", "no match" )
+            print( "Due", "no match", file=sys.stderr )
          return False
       due = task.apiObject.get( 'due' )
       if not due:
          if self.debug:
-            print( "Due", "no match" )
+            print( "Due", "no match", file=sys.stderr )
          return False
       due = due[ :10 ]
       if self.dueRelative == "before":
@@ -125,7 +125,7 @@ class DueMatcher( TaskMatcher ):
          result = due == self.due
       if self.debug:
          if result:
-            print( "Due", "match" )
+            print( "Due", "match", file=sys.stderr )
          else:
             print( "Due", "no match" )
       return result

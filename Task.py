@@ -11,7 +11,10 @@ class Task():
       self.shortId = None
       self.project = project
       self.title = title
+      self.notes = None
       self.complete = False
+      self.dueDate = None
+      self.dueTime = None
 
    def save( self ):
       NotImplementedError( "must subclass Project.Project" )
@@ -20,13 +23,10 @@ class Task():
       NotImplementedError( "must subclass Project.Project" )
 
    def __str__( self ):
-      due = ""
-      if 'due' in self.apiObject:
-         due = "["
-         if self.apiObject[ 'due' ][ 10: ] == "T00:00:00.000Z":
-            due += self.apiObject[ 'due' ][ :10 ]
-         else:
-            due += self.apiObject[ 'due' ][ :16 ]
+      if self.dueDate:
+         due = "[" + self.dueDate
+         if self.dueTime:
+            due += " " + self.dueTime
          due += "] "
       return due + self.title
 
@@ -36,8 +36,8 @@ class Task():
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.lineString(), file=outfile )
-      if options and "verbose" in options and "notes" in self.apiObject:
-         print( "  ", self.apiObject[ "notes" ], file=outfile )
+      if options and "verbose" in options and self.notes is not None:
+         print( "  ", self.notes, file=outfile )
 
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):
@@ -107,22 +107,20 @@ class DueMatcher( TaskMatcher ):
          if self.debug:
             print( "Due", "no match", file=sys.stderr )
          return False
-      due = task.apiObject.get( 'due' )
-      if not due:
+      if not task.dueDate:
          if self.debug:
             print( "Due", "no match", file=sys.stderr )
          return False
-      due = due[ :10 ]
       if self.dueRelative == "before":
-         result = due < self.due
+         result = task.dueDate < self.due
       elif self.dueRelative == "onOrBefore":
-         result = due <= self.due
+         result = task.dueDate <= self.due
       elif self.dueRelative == "after":
-         result = due > self.due
+         result = task.dueDate > self.due
       elif self.dueRelative == "onOrAfter":
-         result = due >= self.due
+         result = task.dueDate >= self.due
       else:
-         result = due == self.due
+         result = task.dueDate == self.due
       if self.debug:
          if result:
             print( "Due", "match", file=sys.stderr )

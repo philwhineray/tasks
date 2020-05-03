@@ -68,7 +68,13 @@ class GoogleTasks:
          self.projectId = self.project.apiId
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
-         self.complete = self.apiObject[ 'status' ] == "completed"
+         self.complete = apiObject[ 'status' ] == "completed"
+         if 'due' in apiObject:
+            self.dueDate = apiObject[ 'due' ][ :10 ]
+            if apiObject[ 'due' ][ 10: ] != "T00:00:00.000Z":
+               self.dueTime = apiObject[ 'due' ][ 11: ]
+               print( self.dueTime, file=sys.stderr )
+         self.notes = apiObject.get( 'notes' )
 
       def print( self, options=None, outfile=sys.stdout ):
          if options and "debug" in options:

@@ -25,9 +25,10 @@ class GoogleTasks:
    userCredentialsFileName = '/user-token.pickle'
 
    class Project( Project.Project ):
-      def __init__( self, service, apiObject  ):
+      def __init__( self, taskApi, apiObject  ):
          super().__init__( apiObject[ 'title' ] )
-         self.service = service
+         self.taskApi = taskApi
+         self.service = taskApi.service
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
 
@@ -44,17 +45,20 @@ class GoogleTasks:
             self.service.tasklists().update(
                   tasklist=self.apiId,
                   body=self.apiObject ).execute()
+            self.taskApi.invalidateProjectCache( self.apiId )
 
       def delete( self ):
          self.service.tasklists().delete(
-               tasklist=self.apiObject[ 'id' ] ).execute()
+               tasklist=self.apiId ).execute()
+         self.taskApi.invalidateProjectCache( self.apiId )
 
    class Task( Task.Task ):
-      def __init__( self, service, project, apiObject ):
+      def __init__( self, taskApi, project, apiObject ):
          if not isinstance( project, GoogleTasks.Project ):
             raise RuntimeError( "cannot add Google Task to non-Google project" )
          super().__init__( project, apiObject[ 'title' ] )
-         self.service = service
+         self.taskApi = taskApi
+         self.service = taskApi.service
          self.projectId = self.project.apiId
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
@@ -82,16 +86,20 @@ class GoogleTasks:
             self.service.tasks().delete(
                   tasklist=oldProjectId,
                   task=oldId ).execute()
+            self.taskApi.invalidateProjectCache( oldProjectId )
+            self.taskApi.invalidateProjectCache( self.projectId )
          elif updated:
             self.service.tasks().update(
-                  tasklist=self.project.apiId,
+                  tasklist=self.projectId,
                   task=self.apiId,
                   body=self.apiObject ).execute()
+            self.taskApi.invalidateProjectCache( self.projectId )
 
       def delete( self ):
          self.service.tasks().delete(
-               tasklist=self.project.apiId,
+               tasklist=self.projectId,
                task=self.apiId ).execute()
+         taskApi.invalidateProjectCache( self.projectId )
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None
@@ -143,7 +151,7 @@ class GoogleTasks:
          result = self.service.tasklists().list( maxResults=100,
                                                  pageToken=nextPage ).execute()
          for apiObject in result.get( 'items', [] ):
-            projects.append( GoogleTasks.Project( self.service, apiObject ) )
+            projects.append( GoogleTasks.Project( self, apiObject ) )
          nextPage = result.get( 'nextPageToken', None )
       updateShortIds( projects, "p" )
       return projects
@@ -163,14 +171,9 @@ class GoogleTasks:
       }
       self.service.tasks().insert( tasklist=task.project.apiId, body=body ).execute()
 
-   def invalidateCache( self, taskOrProject ):
-      if isinstance( taskOrProject, Task.Task ):
-         projectId = taskOrProject.project.apiObject[ 'id' ]
-      elif isinstance( taskOrProject, Project.Project ):
-         projectId = taskOrProject.apiObject[ 'id' ]
-      else:
-         assert False, "invalidateCache works on Task or Project only"
+   def invalidateProjectCache( self, projectId ):
       # TODO - can we make it more fine-grained?
+      # TODO - can we make it save back, rather than reload each time?
       projectCacheFile = self.cacheDir + ( '/project-%s.pickle' % projectId )
       taskCacheFile = self.cacheDir + ( '/tasks-%s.pickle' % projectId )
       if os.path.exists( projectCacheFile ):
@@ -178,7 +181,7 @@ class GoogleTasks:
       if os.path.exists( taskCacheFile ):
          os.remove( taskCacheFile )
 
-   def _getTasks( self, project ):
+   def _getRawTasks( self, project ):
       projectId = project.apiId
       updated = project.apiObject[ 'updated' ]
       projectCacheFile = self.cacheDir + ( '/project-%s.pickle' % projectId )
@@ -198,8 +201,8 @@ class GoogleTasks:
          result = self.service.tasks().list( maxResults=100, tasklist=projectId,
                                              pageToken=nextPage, showHidden=True,
                                              showCompleted=True ).execute()
-         for apiObject in result.get( 'items', [] ):
-            tasks.append( GoogleTasks.Task( self.service, project, apiObject ) )
+         items = result.get( 'items', [] )
+         tasks.extend( items )
          nextPage = result.get( 'nextPageToken', None )
       with open( taskCacheFile, 'wb' ) as taskCache:
          pickle.dump( tasks, taskCache )
@@ -209,7 +212,8 @@ class GoogleTasks:
 
    def getTasks( self, projects ):
       tasks = []
-      for p in projects:
-         tasks.extend( self._getTasks( p ) )
+      for project in projects:
+         for apiObject in self._getRawTasks( project ):
+            tasks.append( GoogleTasks.Task( self, project, apiObject ) )
       updateShortIds( tasks, "t" )
       return tasks

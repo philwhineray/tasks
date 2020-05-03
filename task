@@ -257,7 +257,6 @@ def doTaskAdd( taskApi, options, criteria, words, args ):
    project = getMatchingProject( taskApi, options, criteria )
    task = Task.Task( project, " ".join( words ) )
    taskApi.addTask( task )
-   taskApi.invalidateCache( task )
 
 def doTaskList( taskApi, options, criteria, words, args ):
    tasks = getMatchingTasks( taskApi, options, criteria )
@@ -269,7 +268,6 @@ def doTaskRename( taskApi, options, criteria, words, args ):
       raise RuntimeError( "No new title given (use -- to complete criteria)" )
    task.title = ' '.join( words )
    task.save()
-   taskApi.invalidateCache( task )
 
 def doTaskEdit( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
@@ -298,7 +296,6 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
       printTasksInProjects( projects, tasks, options, outfile=taskFile  )
    subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
    toSave = set()
-   toInvalidate = set()
    with open( taskFilePath, 'r' ) as taskFile:
       project = None
       for line in taskFile:
@@ -312,36 +309,28 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
             task = taskById[ taskId ]
             if delete:
                task.delete()
-               toInvalidate.add( task )
             if complete:
                task.complete = True
                toSave.add( task )
-               toInvalidate.add( task )
             if task.title != title:
                task.title = title
                toSave.add( task )
-               toInvalidate.add( task )
             if task.project.title != project.title:
                if "due" in task.apiObject:
                   print( "Warning: possible loss of time/repeat:",
                          task.lineString() )
-               toInvalidate.add( task.project )
                task.project = project
                toSave.add( task )
-               toInvalidate.add( task.project )
          # TODO edit task itself
          elif re.match( r"[A-Za-z0-9_]", line ):
             project = projectByName[ line.strip() ]
    for task in toSave:
       task.save()
-   for item in toInvalidate:
-      taskApi.invalidateCache( item )
 
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = True
    task.save()
-   taskApi.invalidateCache( task )
    printTask( task, options )
 
 def doTaskUndo( taskApi, options, criteria, words, args ):
@@ -349,13 +338,11 @@ def doTaskUndo( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = False
    task.save()
-   taskApi.invalidateCache( task )
    printTask( task, options )
 
 def doTaskDelete( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    printTask( task, options )
-   taskApi.invalidateCache( task.project )
    task.delete()
 
 def doProjectAdd( taskApi, options, criteria, words, args ):

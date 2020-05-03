@@ -9,6 +9,7 @@ class Project:
    def __init__( self, title ):
       self.shortId = None
       self.title = title
+      self.tasks = set()
 
    def save( self ):
       NotImplementedError( "must subclass Project.Project" )
@@ -21,6 +22,9 @@ class Project:
 
    def __str__( self ):
       return self.title
+
+def sort( projects ):
+   return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
 
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):

@@ -223,7 +223,7 @@ def getMatchingTask( taskApi, options, criteria ):
 def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
    if projects is None:
       projects = set( task.project for task in tasks )
-   for i, project in enumerate( sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" ) ):
+   for i, project in enumerate( Project.sort( projects ) ):
       if i > 0: print( "", file=outfile )
       project.print( options=options, outfile=outfile )
       # Ensure items with due dates are at the top and in order

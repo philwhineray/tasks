@@ -9,12 +9,23 @@ import Matcher
 class Task():
    def __init__( self, project, title ):
       self.shortId = None
-      self.project = project
+      self._project = project
+      self._project.tasks.add( self )
       self.title = title
       self.notes = None
       self.complete = False
       self.dueDate = None
       self.dueTime = None
+
+   def get_project( self ):
+      return self._project
+
+   def set_project( self, project ):
+      self._project.tasks.remove( self )
+      self._project = project
+      self._project.tasks.add( self )
+
+   project = property( get_project, set_project )
 
    def save( self ):
       NotImplementedError( "must subclass Project.Project" )

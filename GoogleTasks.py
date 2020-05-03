@@ -55,6 +55,7 @@ class GoogleTasks:
             raise RuntimeError( "cannot add Google Task to non-Google project" )
          super().__init__( project, apiObject[ 'title' ] )
          self.service = service
+         self.projectId = self.project.apiId
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
          self.complete = self.apiObject[ 'status' ] == "completed"
@@ -70,7 +71,18 @@ class GoogleTasks:
             if self.apiObject[ key ] != value:
                self.apiObject[ key ] = value
                updated = True
-         if updated:
+
+         if self.projectId != self.project.apiId:
+            oldId = self.apiId
+            oldProjectId = self.projectId
+            self.projectId = self.project.apiId
+            self.service.tasks().insert(
+                  tasklist=self.projectId,
+                  body=self.apiObject ).execute()
+            self.service.tasks().delete(
+                  tasklist=oldProjectId,
+                  task=oldId ).execute()
+         elif updated:
             self.service.tasks().update(
                   tasklist=self.project.apiId,
                   task=self.apiId,
@@ -151,15 +163,6 @@ class GoogleTasks:
       }
       self.service.tasks().insert( tasklist=task.project.apiId, body=body ).execute()
 
-   def moveTask( self, task, toProject ):
-      self.fromTask( task )
-      body = task.apiObject
-      projectId = task.project.apiObject[ 'id' ]
-      taskId = task.apiObject[ 'id' ]
-      toProjectId = toProject.apiObject[ 'id' ]
-      self.service.tasks().insert( tasklist=toProjectId, body=body ).execute()
-      self.service.tasks().delete( tasklist=projectId, task=taskId ).execute()
-
    def invalidateCache( self, taskOrProject ):
       if isinstance( taskOrProject, Task.Task ):
          projectId = taskOrProject.project.apiObject[ 'id' ]
@@ -176,7 +179,7 @@ class GoogleTasks:
          os.remove( taskCacheFile )
 
    def _getTasks( self, project ):
-      projectId = project.apiObject[ 'id' ]
+      projectId = project.apiId
       updated = project.apiObject[ 'updated' ]
       projectCacheFile = self.cacheDir + ( '/project-%s.pickle' % projectId )
       taskCacheFile = self.cacheDir + ( '/tasks-%s.pickle' % projectId )

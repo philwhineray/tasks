@@ -209,7 +209,7 @@ def getMatchingTasks( taskApi, options, criteria ):
          print( "Matching...", task )
       if criteria.match( task ):
          if "debug" in options:
-            print( "%s:" % task.shortId, task.apiObject )
+            print( "%s:" % task.shortId, task.projectId, task.apiObject )
          match.append( task )
    return match
 
@@ -297,32 +297,43 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
    with open( taskFilePath, 'w' ) as taskFile:
       printTasksInProjects( projects, tasks, options, outfile=taskFile  )
    subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
-   toComplete = set()
-   toReparent = set()
+   toSave = set()
+   toInvalidate = set()
    with open( taskFilePath, 'r' ) as taskFile:
       project = None
       for line in taskFile:
-         match = re.match( r"(t[0-9a-f]+) +\[([ X])\] +", line )
+         match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(.*)", line )
          if match:
-            task = taskById[ match[ 1 ] ]
-            if match[ 2 ] == 'X':
-               toComplete.add( task )
+            taskId = match[ 1 ]
+            complete = match[ 2 ] == 'X'
+            delete = match[ 2 ] == '-'
+            title = match[ 3 ]
+
+            task = taskById[ taskId ]
+            if delete:
+               task.delete()
+               toInvalidate.add( task )
+            if complete:
+               task.complete = True
+               toSave.add( task )
+               toInvalidate.add( task )
+            if task.title != title:
+               task.title = title
+               toSave.add( task )
+               toInvalidate.add( task )
             if task.project.title != project.title:
-               toReparent.add( ( task, task.project, project ) )
-         # TODO add/remove tags
+               if "due" in task.apiObject:
+                  print( "Warning: possible loss of time/repeat:",
+                         task.lineString() )
+               toInvalidate.add( task.project )
+               task.project = project
+               toSave.add( task )
+               toInvalidate.add( task.project )
+         # TODO edit task itself
          elif re.match( r"[A-Za-z0-9_]", line ):
             project = projectByName[ line.strip() ]
-   toInvalidate = set()
-   for task in toComplete:
-      task.complete = True
+   for task in toSave:
       task.save()
-      toInvalidate.add( task )
-   for task, fromProject, toProject in toReparent:
-      taskApi.moveTask( task, toProject )
-      if "due" in task.apiObject:
-         print( "Warning: possible loss of time/repeat:", task.lineString() )
-      toInvalidate.add( fromProject )
-      toInvalidate.add( toProject )
    for item in toInvalidate:
       taskApi.invalidateCache( item )
 

@@ -2,10 +2,11 @@
 
 from datetime import datetime
 import re
+import sys
 
 import Matcher
 
-class Task:
+class Task():
    def __init__( self, project, title ):
       self.shortId = None
       self.project = project
@@ -32,6 +33,11 @@ class Task:
    def lineString( self ):
       completeMark = "[X]" if self.complete else "[ ]"
       return self.shortId + " " + completeMark + " " + str( self )
+
+   def print( self, options=None, outfile=sys.stdout ):
+      print( self.lineString(), file=outfile )
+      if options and "verbose" in options and "notes" in self.apiObject:
+         print( "  ", self.apiObject[ "notes" ], file=outfile )
 
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):

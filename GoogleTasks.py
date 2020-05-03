@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-import pickle
-import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.auth.exceptions import RefreshError
+import os.path
+import pickle
+import sys
 
 # API docs:
 #   https://developers.google.com/api-client-library/python/
@@ -31,6 +32,11 @@ class GoogleTasks:
          self.service = taskApi.service
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
+
+      def print( self, options=None, outfile=sys.stdout ):
+         if options and "debug" in options:
+            print( "%s:" % self.shortId, self.apiObject, file=sys.stderr )
+         super().print( options=options, outfile=outfile )
 
       def save( self ):
          apiMap = {
@@ -63,6 +69,11 @@ class GoogleTasks:
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
          self.complete = self.apiObject[ 'status' ] == "completed"
+
+      def print( self, options=None, outfile=sys.stdout ):
+         if options and "debug" in options:
+            print( "%s:" % self.shortId, self.apiObject, file=sys.stderr )
+         super().print( options=options, outfile=outfile )
 
       def save( self ):
          status = "completed" if self.complete else "needsAction"

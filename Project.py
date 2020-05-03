@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import re
+import sys
+
 import Matcher
 
 class Project:
@@ -13,6 +15,9 @@ class Project:
 
    def delete( self ):
       NotImplementedError( "must subclass Project.Project" )
+
+   def print( self, options=None, outfile=sys.stdout ):
+      print( self.title, file=outfile )
 
    def __str__( self ):
       return self.title

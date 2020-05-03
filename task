@@ -219,24 +219,16 @@ def getMatchingTask( taskApi, options, criteria ):
       raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
    return tasks[ 0 ]
 
-def printTask( task, options, outfile=sys.stdout ):
-   if "debug" in options:
-      print( "%s:" % task.shortId, task.apiObject, file=outfile )
-   else:
-      print( task.lineString(), file=outfile )
-      if "verbose" in options and "notes" in task.apiObject:
-         print( "  ", task.apiObject[ "notes" ], file=outfile )
-
 def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
    if projects is None:
       projects = set( task.project for task in tasks )
    for i, project in enumerate( sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" ) ):
       if i > 0: print( "", file=outfile )
-      print( project, file=outfile )
+      project.print( options=options, outfile=outfile )
       # Ensure items with due dates are at the top and in order
       for task in sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) ):
          if task.project.title == project.title:
-            printTask( task, options, outfile=outfile )
+            task.print( options=options, outfile=outfile )
 
 def splitCriteria( criteria ):
    projectCriteria = set()
@@ -332,18 +324,18 @@ def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = True
    task.save()
-   printTask( task, options )
+   task.print( options=options )
 
 def doTaskUndo( taskApi, options, criteria, words, args ):
    options[ "onlyComplete" ] = True
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = False
    task.save()
-   printTask( task, options )
+   task.print( options=options )
 
 def doTaskDelete( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
-   printTask( task, options )
+   task.print( options=options )
    task.delete()
 
 def doProjectAdd( taskApi, options, criteria, words, args ):

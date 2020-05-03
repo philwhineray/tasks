@@ -116,7 +116,7 @@ class GoogleTasks:
          self.service.tasks().delete(
                tasklist=self.projectId,
                task=self.apiId ).execute()
-         taskApi.invalidateProjectCache( self.projectId )
+         self.taskApi.invalidateProjectCache( self.projectId )
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None

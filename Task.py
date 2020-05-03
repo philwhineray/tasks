@@ -28,7 +28,8 @@ class Task():
          if self.dueTime:
             due += " " + self.dueTime
          due += "] "
-      return due + self.title
+         return due + self.title
+      return self.title
 
    def lineString( self ):
       completeMark = "[X]" if self.complete else "[ ]"

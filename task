@@ -24,7 +24,7 @@ COMMAND:
     undo   - Mark as incomplete
     delete - Remove task
     edit   - Edit task
-    order  - Bulk move / re-order tasks
+    bulk   - Bulk move / re-order tasks
 
 OPTION:
     -P or -p        - Operate at whole-project level
@@ -77,7 +77,7 @@ def main( argv ):
          "add" : doTaskAdd,
          "list" : doTaskList,
          "edit" : doTaskEdit,
-         "order" : doTasksOrder,
+         "bulk" : doTasksBulk,
          "rename" : doTaskRename,
          "done" : doTaskDone,
          "undo" : doTaskUndo,
@@ -278,10 +278,10 @@ def doTaskTag( taskApi, options, criteria, words, args ):
    # TODO: Add @TAG criteria, remove @-TAG criteria
    raise NotImplementedError( "doTasksEdit" )
 
-def doTasksOrder( taskApi, options, criteria, words, args ):
+def doTasksBulk( taskApi, options, criteria, words, args ):
    ( projectCriteria, taskCriteria ) = splitCriteria( criteria )
    if options or taskCriteria:
-      raise RuntimeError( "order: takes no options or task criteria" )
+      raise RuntimeError( "bulk: takes no options or task criteria" )
    projects = getMatchingProjects( taskApi, options, criteria )
    tasks = getMatchingTasks( taskApi, options, criteria )
    taskById = {}
@@ -299,12 +299,13 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
    with open( taskFilePath, 'r' ) as taskFile:
       project = None
       for line in taskFile:
-         match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(.*)", line )
+         match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
          if match:
             taskId = match[ 1 ]
             complete = match[ 2 ] == 'X'
             delete = match[ 2 ] == '-'
-            title = match[ 3 ]
+            date = match[ 4 ]
+            title = match[ 5 ]
 
             task = taskById[ taskId ]
             if delete:
@@ -321,7 +322,7 @@ def doTasksOrder( taskApi, options, criteria, words, args ):
                          task.lineString() )
                task.project = project
                toSave.add( task )
-         # TODO edit task itself
+            # TODO edit task date?
          elif re.match( r"[A-Za-z0-9_]", line ):
             project = projectByName[ line.strip() ]
    for task in toSave:

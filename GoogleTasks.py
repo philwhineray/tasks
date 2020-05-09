@@ -29,7 +29,6 @@ class GoogleTasks:
       def __init__( self, taskApi, apiObject  ):
          super().__init__( apiObject[ 'title' ] )
          self.taskApi = taskApi
-         self.service = taskApi.service
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
 
@@ -48,13 +47,13 @@ class GoogleTasks:
                self.apiObject[ key ] = value
                updated = True
          if updated:
-            self.service.tasklists().update(
+            self.taskApi.tasklists().update(
                   tasklist=self.apiId,
                   body=self.apiObject ).execute()
             self.taskApi.invalidateProjectCache( self.apiId )
 
       def delete( self ):
-         self.service.tasklists().delete(
+         self.taskApi.tasklists().delete(
                tasklist=self.apiId ).execute()
          self.taskApi.invalidateProjectCache( self.apiId )
 
@@ -68,7 +67,6 @@ class GoogleTasks:
          super().__init__( project )
          self.project = project
          self.taskApi = project.taskApi
-         self.service = self.taskApi.service
          self.projectId = self.project.apiId
          self.apiObject = apiObject
          self.title = apiObject.get( 'title' )
@@ -103,24 +101,24 @@ class GoogleTasks:
             oldId = self.apiId
             oldProjectId = self.projectId
             self.projectId = self.project.apiId
-            self.service.tasks().insert(
+            self.taskApi.tasks().insert(
                   tasklist=self.projectId,
                   body=self.apiObject ).execute()
             self.taskApi.invalidateProjectCache( self.projectId )
             if oldId is not None:
-               self.service.tasks().delete(
+               self.taskApi.tasks().delete(
                      tasklist=oldProjectId,
                      task=oldId ).execute()
                self.taskApi.invalidateProjectCache( oldProjectId )
          elif updated:
-            self.service.tasks().update(
+            self.taskApi.tasks().update(
                   tasklist=self.projectId,
                   task=self.apiId,
                   body=self.apiObject ).execute()
             self.taskApi.invalidateProjectCache( self.projectId )
 
       def delete( self ):
-         self.service.tasks().delete(
+         self.taskApi.tasks().delete(
                tasklist=self.projectId,
                task=self.apiId ).execute()
          self.taskApi.invalidateProjectCache( self.projectId )
@@ -165,6 +163,12 @@ class GoogleTasks:
                pickle.dump( self.creds, token )
 
       self.service = build( 'tasks', 'v1', credentials=self.creds )
+
+   def tasklists( self ):
+      return self.service.tasklists()
+
+   def tasks( self ):
+      return self.service.tasks()
 
    def getProjects( self ):
       first = True

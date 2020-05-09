@@ -37,6 +37,25 @@ class Project:
    def __str__( self ):
       return self.title
 
+   def matchingTasks( self, options, criteria ):
+      match = set()
+      for task in self.tasks:
+         if "debugMatching" in options:
+            print( "", file=sys.stderr )
+            print( "Matching...", task, file=sys.stderr )
+         if "all" not in options and task.complete:
+            if "debugMatching" in options:
+               print( "Rejected: Completed and not 'all'", file=sys.stderr )
+            continue
+         if criteria.match( task ):
+            if "debugMatching" in options:
+               print( "Accepted", file=sys.stderr )
+            match.add( task )
+         else:
+            if "debugMatching" in options:
+               print( "Rejected", file=sys.stderr )
+      return match
+
 def sort( projects ):
    return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
 

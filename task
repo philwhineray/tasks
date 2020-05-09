@@ -196,28 +196,15 @@ def getMatchingProject( taskApi, options, criteria ):
 
 def getMatchingTasks( taskApi, options, criteria ):
    projects = taskApi.getProjects()
-   tasks = []
+   tasks = set()
    for project in projects:
-      tasks += project.tasks
-   if "all" in options and "onlyComplete" in options:
-      raise RuntimeError( "Cannot combine options all and onlyComplete" )
-   if "onlyComplete" in options:
-      tasks = [ task for task in tasks if task.complete ]
-   elif not "all" in options:
-      tasks = [ task for task in tasks if not task.complete ]
-   match = []
-   for task in tasks:
-      if "debugMatching" in options:
-         print( "", file=sys.stderr )
-         print( "Matching...", task, file=sys.stderr )
-      if criteria.match( task ):
-         if "debugMatching" in options:
-            print( "%s:" % task.shortId, task.projectId, task.apiObject, file=sys.stderr )
-         match.append( task )
-   return match
+      tasks |= project.matchingTasks( options, criteria )
+   return tasks
 
 def getMatchingTask( taskApi, options, criteria ):
-   tasks = getMatchingTasks( taskApi, options, criteria )
+   tasks = list( getMatchingTasks( taskApi, options, criteria ) )
+   if len( tasks ) > 1 and "onlyComplete" in options:
+      tasks = [ task for task in tasks if task.complete ]
    if len( tasks ) != 1:
       raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
    return tasks[ 0 ]
@@ -277,6 +264,7 @@ def doTaskTag( taskApi, options, criteria, words, args ):
 def doTasksBulk( taskApi, options, criteria, words, args ):
    ( projectCriteria, taskCriteria ) = splitCriteria( criteria )
    if options or taskCriteria:
+      # If options are ever allowed, ensure "all" is still disallowed.
       raise RuntimeError( "bulk: takes no options or task criteria" )
    projects = getMatchingProjects( taskApi, options, criteria )
    tasks = getMatchingTasks( taskApi, options, criteria )
@@ -331,6 +319,7 @@ def doTaskDone( taskApi, options, criteria, words, args ):
    task.print( options=options )
 
 def doTaskUndo( taskApi, options, criteria, words, args ):
+   options[ "all" ] = True
    options[ "onlyComplete" ] = True
    task = getMatchingTask( taskApi, options, criteria )
    task.complete = False

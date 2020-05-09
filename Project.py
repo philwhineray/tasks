@@ -12,10 +12,13 @@ class Project:
       self.tasks = set()
 
    def save( self ):
-      NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Project.Project" )
 
    def delete( self ):
-      NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Project.Project" )
+
+   def newTask( self ):
+      raise NotImplementedError( "must subclass Project.Project" )
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.title, file=outfile )

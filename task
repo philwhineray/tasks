@@ -248,8 +248,9 @@ def doTaskAdd( taskApi, options, criteria, words, args ):
    if taskCriteria:
       raise RuntimeError( "Cannot use task criteria with 'add'" )
    project = getMatchingProject( taskApi, options, criteria )
-   task = Task.Task( project, " ".join( words ) )
-   taskApi.addTask( task )
+   task = project.newTask()
+   task.title = " ".join( words )
+   task.save()
 
 def doTaskList( taskApi, options, criteria, words, args ):
    tasks = getMatchingTasks( taskApi, options, criteria )

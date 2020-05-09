@@ -8,7 +8,7 @@ class Matcher():
       self.debug = False
 
    def match( self, projectOrTask ):
-      NotImplementedError( "must subclass Matcher.Matcher" )
+      raise NotImplementedError( "must subclass Matcher.Matcher" )
 
 class Group( Matcher ):
    def __init__( self ):

@@ -58,17 +58,22 @@ class GoogleTasks:
                tasklist=self.apiId ).execute()
          self.taskApi.invalidateProjectCache( self.apiId )
 
+      def newTask( self ):
+         return GoogleTasks.Task( self, {} )
+
    class Task( Task.Task ):
-      def __init__( self, taskApi, project, apiObject ):
+      def __init__( self, project, apiObject ):
          if not isinstance( project, GoogleTasks.Project ):
             raise RuntimeError( "cannot add Google Task to non-Google project" )
-         super().__init__( project, apiObject[ 'title' ] )
-         self.taskApi = taskApi
-         self.service = taskApi.service
+         super().__init__( project )
+         self.project = project
+         self.taskApi = project.taskApi
+         self.service = self.taskApi.service
          self.projectId = self.project.apiId
          self.apiObject = apiObject
-         self.apiId = apiObject[ 'id' ]
-         self.complete = apiObject[ 'status' ] == "completed"
+         self.title = apiObject.get( 'title' )
+         self.apiId = apiObject.get( 'id' )
+         self.complete = apiObject.get( 'status' ) == "completed"
          if 'due' in apiObject:
             self.dueDate = apiObject[ 'due' ][ :10 ]
             if apiObject[ 'due' ][ 10: ] != "T00:00:00.000Z":
@@ -88,23 +93,25 @@ class GoogleTasks:
             'status': status,
          }
          updated = False
+
          for key, value in apiMap.items():
-            if self.apiObject[ key ] != value:
+            if self.apiObject.get( key ) != value:
                self.apiObject[ key ] = value
                updated = True
 
-         if self.projectId != self.project.apiId:
+         if self.apiId is None or self.projectId != self.project.apiId:
             oldId = self.apiId
             oldProjectId = self.projectId
             self.projectId = self.project.apiId
             self.service.tasks().insert(
                   tasklist=self.projectId,
                   body=self.apiObject ).execute()
-            self.service.tasks().delete(
-                  tasklist=oldProjectId,
-                  task=oldId ).execute()
-            self.taskApi.invalidateProjectCache( oldProjectId )
             self.taskApi.invalidateProjectCache( self.projectId )
+            if oldId is not None:
+               self.service.tasks().delete(
+                     tasklist=oldProjectId,
+                     task=oldId ).execute()
+               self.taskApi.invalidateProjectCache( oldProjectId )
          elif updated:
             self.service.tasks().update(
                   tasklist=self.projectId,
@@ -180,14 +187,6 @@ class GoogleTasks:
       apiObject = self.service.tasklists().insert( body=body ).execute()
       return GoogleTasks.Project( self.service, apiObject )
 
-   def addTask( self, task ):
-      status = "completed" if task.complete else "needsAction"
-      body = {
-        "title": task.title,
-        "status": status,
-      }
-      self.service.tasks().insert( tasklist=task.project.apiId, body=body ).execute()
-
    def invalidateProjectCache( self, projectId ):
       # TODO - can we make it more fine-grained?
       # TODO - can we make it save back, rather than reload each time?
@@ -231,6 +230,6 @@ class GoogleTasks:
       tasks = []
       for project in projects:
          for apiObject in self._getRawTasks( project ):
-            tasks.append( GoogleTasks.Task( self, project, apiObject ) )
+            tasks.append( GoogleTasks.Task( project, apiObject ) )
       updateShortIds( tasks, "t" )
       return tasks

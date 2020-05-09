@@ -7,11 +7,11 @@ import sys
 import Matcher
 
 class Task():
-   def __init__( self, project, title ):
+   def __init__( self, project ):
       self.shortId = None
       self._project = project
       self._project.tasks.add( self )
-      self.title = title
+      self.title = None
       self.notes = None
       self.complete = False
       self.dueDate = None
@@ -28,10 +28,10 @@ class Task():
    project = property( get_project, set_project )
 
    def save( self ):
-      NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Project.Project" )
 
    def delete( self ):
-      NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Project.Project" )
 
    def __str__( self ):
       if self.dueDate:

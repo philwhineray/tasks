@@ -344,12 +344,10 @@ def doProjectAdd( taskApi, options, criteria, words, args ):
    taskApi.addProject( project )
 
 def doProjectList( taskApi, options, criteria, words, args ):
+   outfile = sys.stdout
    projects = getMatchingProjects( taskApi, options, criteria )
-   for project in projects:
-      if "debug" in options:
-         print( "%s:" % project.shortId, project.apiObject, file=sys.stderr )
-      else:
-         print( "%s:" % project.shortId, project )
+   for _, project in enumerate( Project.sort( projects ) ):
+      project.print( options=options, outfile=outfile )
 
 def doProjectRename( taskApi, options, criteria, words, args ):
    project = getMatchingProject( taskApi, options, criteria )

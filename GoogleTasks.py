@@ -24,10 +24,12 @@ class GoogleTasks:
 
    appCredentialsFileName = '/app-credentials.json'
    userCredentialsFileName = '/user-token.pickle'
+   allTasks = set()
 
    class Project( Project.Project ):
       def __init__( self, taskApi, apiObject  ):
          super().__init__( apiObject[ 'title' ] )
+         self.loaded = False
          self.taskApi = taskApi
          self.apiObject = apiObject
          self.apiId = apiObject[ 'id' ]
@@ -56,6 +58,16 @@ class GoogleTasks:
          self.taskApi.tasklists().delete(
                tasklist=self.apiId ).execute()
          self.taskApi.invalidateProjectCache( self.apiId )
+
+      def get_tasks( self ):
+         if not self.loaded:
+            self.loaded = True
+            for apiObject in self.taskApi._getRawTasks( self ):
+               GoogleTasks.Task( self, apiObject )
+            self.taskApi.assignTaskIds( self._tasks )
+         return super().get_tasks()
+
+      tasks = property( get_tasks )
 
       def newTask( self ):
          return GoogleTasks.Task( self, {} )
@@ -230,10 +242,6 @@ class GoogleTasks:
          pickle.dump( project, projectCache )
       return tasks
 
-   def getTasks( self, projects ):
-      tasks = []
-      for project in projects:
-         for apiObject in self._getRawTasks( project ):
-            tasks.append( GoogleTasks.Task( project, apiObject ) )
-      updateShortIds( tasks, "t" )
-      return tasks
+   def assignTaskIds( self, newTasks ):
+      self.allTasks |= newTasks
+      updateShortIds( self.allTasks, "t" )

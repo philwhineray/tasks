@@ -196,7 +196,9 @@ def getMatchingProject( taskApi, options, criteria ):
 
 def getMatchingTasks( taskApi, options, criteria ):
    projects = taskApi.getProjects()
-   tasks = taskApi.getTasks( projects )
+   tasks = []
+   for project in projects:
+      tasks += project.tasks
    if "all" in options and "onlyComplete" in options:
       raise RuntimeError( "Cannot combine options all and onlyComplete" )
    if "onlyComplete" in options:

@@ -10,7 +10,7 @@ class Task():
    def __init__( self, project ):
       self.shortId = None
       self._project = project
-      self._project.tasks.add( self )
+      self._project.addTask( self )
       self.title = None
       self.notes = None
       self.complete = False
@@ -21,9 +21,9 @@ class Task():
       return self._project
 
    def set_project( self, project ):
-      self._project.tasks.remove( self )
+      self._project.removeTask( self )
       self._project = project
-      self._project.tasks.add( self )
+      self._project.addTask( self )
 
    project = property( get_project, set_project )
 
@@ -52,7 +52,7 @@ class Task():
          print( "  ", self.notes, file=outfile )
 
 def sort( tasks ):
-   return sorted( tasks, key=lambda t: t.apiObject.get( 'due', "ZZZZ" ) )
+   return sorted( tasks, key=lambda t: ( t.apiObject.get( 'due', "ZZZZ" ), t.title.upper() ) )
 
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):

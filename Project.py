@@ -9,7 +9,7 @@ class Project:
    def __init__( self, title ):
       self.shortId = None
       self.title = title
-      self.tasks = set()
+      self._tasks = set()
 
    def save( self ):
       raise NotImplementedError( "must subclass Project.Project" )
@@ -19,6 +19,17 @@ class Project:
 
    def newTask( self ):
       raise NotImplementedError( "must subclass Project.Project" )
+
+   def addTask( self, task ):
+      self._tasks.add( task )
+
+   def removeTask( self, task ):
+      self._tasks.add( task )
+
+   def get_tasks( self ):
+      return self._tasks
+
+   tasks = property( get_tasks )
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.title, file=outfile )

@@ -175,7 +175,9 @@ def main( argv ):
    commandMap[ command ]( taskApi, options, criteria, words, args )
 
 def getMatchingProjects( taskApi, options, criteria ):
-   ( projectCriteria, _taskCriteria ) = splitCriteria( criteria )
+   ( _, taskCriteria ) = splitCriteria( criteria )
+   if taskCriteria:
+      raise RuntimeError( "Cannot use task criteria with this action" )
    projects = taskApi.getProjects()
    match = []
    for project in projects:
@@ -231,11 +233,9 @@ def splitCriteria( criteria ):
    return projectCriteria, taskCriteria
 
 def doTaskAdd( taskApi, options, criteria, words, args ):
-   ( projectCriteria, taskCriteria ) = splitCriteria( criteria )
+   ( projectCriteria, _ ) = splitCriteria( criteria )
    if not projectCriteria:
       projectCriteria = [ Project.WordMatcher( "inbox" ) ]
-   if taskCriteria:
-      raise RuntimeError( "Cannot use task criteria with 'add'" )
    project = getMatchingProject( taskApi, options, criteria )
    task = project.newTask()
    task.title = " ".join( words )
@@ -262,10 +262,9 @@ def doTaskTag( taskApi, options, criteria, words, args ):
    raise NotImplementedError( "doTasksEdit" )
 
 def doTasksBulk( taskApi, options, criteria, words, args ):
-   ( projectCriteria, taskCriteria ) = splitCriteria( criteria )
-   if options or taskCriteria:
+   if options:
       # If options are ever allowed, ensure "all" is still disallowed.
-      raise RuntimeError( "bulk: takes no options or task criteria" )
+      raise RuntimeError( "bulk: takes no options" )
    projects = getMatchingProjects( taskApi, options, criteria )
    tasks = getMatchingTasks( taskApi, options, criteria )
    taskById = {}
@@ -356,11 +355,9 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
       project.delete()
       print( "deleted: %s: %s" % ( project.shortId, project ), file=sys.stderr )
 
-   ( projectCriteria, taskCriteria ) = splitCriteria( criteria )
+   ( projectCriteria, _ ) = splitCriteria( criteria )
    if not projectCriteria:
       raise RuntimeError( "must specify project id(s) or name(s)" )
-   if taskCriteria:
-      raise RuntimeError( "Cannot use task criteria with 'project-delete'" )
    projects = getMatchingProjects( taskApi, options, criteria )
    titles = set( [ p.title for p in projects ] )
    for project in projects:

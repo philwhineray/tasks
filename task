@@ -266,7 +266,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
    taskFile = open( taskFilePath, 'w')
    with open( taskFilePath, 'w' ) as taskFile:
       options[ "includeEmptyProjects" ] = True
-      Project.write( taskApi.getProjects(), options, criteria, outfile=taskFile )
+      Project.write( projects, options, criteria, outfile=taskFile )
 
    subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
    toSave = set()

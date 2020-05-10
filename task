@@ -210,17 +210,6 @@ def getMatchingTask( taskApi, options, criteria ):
       raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
    return tasks[ 0 ]
 
-def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
-   if projects is None:
-      projects = set( task.project for task in tasks )
-   for i, project in enumerate( Project.sort( projects ) ):
-      if i > 0: print( "", file=outfile )
-      project.print( options=options, outfile=outfile )
-      # Ensure items with due dates are at the top and in order
-      for task in Task.sort( tasks ):
-         if task.project.title == project.title:
-            task.print( options=options, outfile=outfile )
-
 def doTaskAdd( taskApi, options, criteria, words, args ):
    if criteria.hasInstanceOf( Task.TaskMatcher ):
       raise RuntimeError( "Cannot use task criteria with this action" )
@@ -248,7 +237,7 @@ def doTaskEdit( taskApi, options, criteria, words, args ):
 def doTaskTag( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
    # TODO: Add @TAG criteria, remove @-TAG criteria
-   raise NotImplementedError( "doTasksEdit" )
+   raise NotImplementedError( "doTasksTag" )
 
 def doTasksBulk( taskApi, options, criteria, words, args ):
    if options:
@@ -258,9 +247,6 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
       raise RuntimeError( "Cannot use task criteria with this action" )
 
    projects = taskApi.getProjects()
-   projectByName = {}
-   for project in projects:
-      projectByName[ project.title ] = project
 
    taskFilePath = args[ 'tempdir' ] + '/tasks.txt'
    taskFile = open( taskFilePath, 'w')
@@ -269,38 +255,9 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
       Project.write( projects, options, criteria, outfile=taskFile )
 
    subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
-   toSave = set()
-   with open( taskFilePath, 'r' ) as taskFile:
-      project = None
-      for line in taskFile:
-         match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
-         if match:
-            taskId = match[ 1 ]
-            complete = match[ 2 ] == 'X'
-            delete = match[ 2 ] == '-'
-            date = match[ 4 ]
-            title = match[ 5 ]
 
-            task = taskApi.getTaskById( taskId )
-            if delete:
-               task.delete()
-            if complete:
-               task.complete = True
-               toSave.add( task )
-            if task.title != title:
-               task.title = title
-               toSave.add( task )
-            if task.project.title != project.title:
-               if "due" in task.apiObject:
-                  print( "Warning: possible loss of time/repeat:",
-                         task.lineString() )
-               task.project = project
-               toSave.add( task )
-            # TODO edit task date?
-         elif re.match( r"[A-Za-z0-9_]", line ):
-            project = projectByName[ line.strip() ]
-   for task in toSave:
-      task.save()
+   with open( taskFilePath, 'r' ) as taskFile:
+      Project.read( projects, options, infile=taskFile )
 
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
@@ -328,7 +285,7 @@ def doProjectAdd( taskApi, options, criteria, words, args ):
 def doProjectList( taskApi, options, criteria, words, args ):
    outfile = sys.stdout
    projects = getMatchingProjects( taskApi, options, criteria )
-   for _, project in enumerate( Project.sort( projects ) ):
+   for project in Project.Project.sort( projects ):
       project.print( options=options, outfile=outfile )
 
 def doProjectRename( taskApi, options, criteria, words, args ):

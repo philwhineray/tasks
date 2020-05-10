@@ -87,6 +87,46 @@ def write( projects, options, criteria, outfile=sys.stdout ):
             printProjectIfNeeded()
             task.print( options=options, outfile=outfile )
 
+def read( projects, options, infile=None ):
+   projectByName = {}
+   taskById = {}
+   for project in projects:
+      projectByName[ project.title ] = project
+      for task in project.tasks:
+         taskById[ task.shortId ] = task
+
+   toSave = set()
+   project = None
+   for line in infile:
+      match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      if match:
+         taskId = match[ 1 ]
+         complete = match[ 2 ] == 'X'
+         delete = match[ 2 ] == '-'
+         date = match[ 4 ]
+         title = match[ 5 ]
+
+         task = taskById[ taskId ]
+         if delete:
+            task.delete()
+         if complete:
+            task.complete = True
+            toSave.add( task )
+         if task.title != title:
+            task.title = title
+            toSave.add( task )
+         if task.project.title != project.title:
+            if "due" in task.apiObject:
+               print( "Warning: possible loss of time/repeat:",
+                      task.lineString() )
+            task.project = project
+            toSave.add( task )
+         # TODO edit task date?
+      elif re.match( r"[A-Za-z0-9_]", line ):
+         project = projectByName[ line.strip() ]
+   for task in toSave:
+      task.save()
+
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):
       return isinstance( projectOrTask, Project )

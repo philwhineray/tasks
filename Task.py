@@ -52,6 +52,7 @@ class Task():
          print( "  ", self.notes, file=outfile )
 
 def sort( tasks ):
+   # Ensure items with due dates are at the top and in order.
    return sorted( tasks, key=lambda t: ( t.apiObject.get( 'due', "ZZZZ" ), t.title.upper() ) )
 
 class TaskMatcher( Matcher.Matcher ):

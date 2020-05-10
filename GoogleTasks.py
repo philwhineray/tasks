@@ -25,6 +25,7 @@ class GoogleTasks:
    appCredentialsFileName = '/app-credentials.json'
    userCredentialsFileName = '/user-token.pickle'
    allTasks = set()
+   tasksById = {}
 
    class Project( Project.Project ):
       def __init__( self, taskApi, apiObject  ):
@@ -203,6 +204,9 @@ class GoogleTasks:
       apiObject = self.service.tasklists().insert( body=body ).execute()
       return GoogleTasks.Project( self.service, apiObject )
 
+   def getTaskById( self, taskId ):
+      return self.tasksById[ taskId ]
+
    def invalidateProjectCache( self, projectId ):
       # TODO - can we make it more fine-grained?
       # TODO - can we make it save back, rather than reload each time?
@@ -245,3 +249,6 @@ class GoogleTasks:
    def assignTaskIds( self, newTasks ):
       self.allTasks |= newTasks
       updateShortIds( self.allTasks, "t" )
+      self.tasksById = {}
+      for task in self.allTasks:
+         self.tasksById[ task.shortId ] = task

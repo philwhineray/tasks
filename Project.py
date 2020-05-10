@@ -4,6 +4,7 @@ import re
 import sys
 
 import Matcher
+import Task
 
 class Project:
    def __init__( self, title ):
@@ -56,8 +57,35 @@ class Project:
                print( "Rejected", file=sys.stderr )
       return match
 
-def sort( projects ):
-   return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
+   def sort( projects ):
+      return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
+
+def write( projects, options, criteria, outfile=sys.stdout ):
+   printedProject = set()
+
+   # Force reading of all tasks, so we get consistent short Ids.
+   for project in Project.sort( projects ):
+      _ = project.tasks
+
+   for project in Project.sort( projects ):
+
+      def printProjectIfNeeded():
+         if project in printedProject:
+            return
+         if printedProject:
+            print( "", file=outfile )
+         project.print( options=options, outfile=outfile )
+         printedProject.add( project )
+
+      if "all" in options or "includeEmptyProjects" in options:
+         printProjectIfNeeded()
+
+      for task in Task.sort( project.tasks ):
+         if task.complete and "all" not in options:
+            continue
+         if criteria.match( task ):
+            printProjectIfNeeded()
+            task.print( options=options, outfile=outfile )
 
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):

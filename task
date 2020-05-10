@@ -232,8 +232,7 @@ def doTaskAdd( taskApi, options, criteria, words, args ):
    task.save()
 
 def doTaskList( taskApi, options, criteria, words, args ):
-   tasks = getMatchingTasks( taskApi, options, criteria )
-   printTasksInProjects( None, tasks, options )
+   Project.write( taskApi.getProjects(), options, criteria )
 
 def doTaskRename( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )
@@ -255,18 +254,20 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
    if options:
       # If options are ever allowed, ensure "all" is still disallowed.
       raise RuntimeError( "bulk: takes no options" )
-   projects = getMatchingProjects( taskApi, options, criteria )
-   tasks = getMatchingTasks( taskApi, options, criteria )
-   taskById = {}
-   for task in tasks:
-      taskById[ task.shortId ] = task
+   if criteria.hasInstanceOf( Task.TaskMatcher ):
+      raise RuntimeError( "Cannot use task criteria with this action" )
+
+   projects = taskApi.getProjects()
    projectByName = {}
    for project in projects:
       projectByName[ project.title ] = project
+
    taskFilePath = args[ 'tempdir' ] + '/tasks.txt'
    taskFile = open( taskFilePath, 'w')
    with open( taskFilePath, 'w' ) as taskFile:
-      printTasksInProjects( projects, tasks, options, outfile=taskFile  )
+      options[ "includeEmptyProjects" ] = True
+      Project.write( taskApi.getProjects(), options, criteria, outfile=taskFile )
+
    subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
    toSave = set()
    with open( taskFilePath, 'r' ) as taskFile:
@@ -280,7 +281,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
             date = match[ 4 ]
             title = match[ 5 ]
 
-            task = taskById[ taskId ]
+            task = taskApi.getTaskById( taskId )
             if delete:
                task.delete()
             if complete:

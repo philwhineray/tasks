@@ -10,6 +10,9 @@ class Matcher():
    def match( self, projectOrTask ):
       raise NotImplementedError( "must subclass Matcher.Matcher" )
 
+   def hasInstanceOf( self, classType ):
+      return isinstance( self, classType )
+
 class Group( Matcher ):
    def __init__( self ):
       super().__init__()
@@ -20,6 +23,11 @@ class Group( Matcher ):
       self.matchers.append( matcher )
       matcher.parent = self
       matcher.debug = self.debug
+
+   def hasInstanceOf( self, classType ):
+      for matcher in self.matchers:
+         if matcher.hasInstanceOf( classType ):
+            return True
 
 class And( Group ):
    def match( self, projectOrTask ):

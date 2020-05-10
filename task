@@ -175,8 +175,7 @@ def main( argv ):
    commandMap[ command ]( taskApi, options, criteria, words, args )
 
 def getMatchingProjects( taskApi, options, criteria ):
-   ( _, taskCriteria ) = splitCriteria( criteria )
-   if taskCriteria:
+   if criteria.hasInstanceOf( Task.TaskMatcher ):
       raise RuntimeError( "Cannot use task criteria with this action" )
    projects = taskApi.getProjects()
    match = []
@@ -222,19 +221,10 @@ def printTasksInProjects( projects, tasks, options, outfile=sys.stdout ):
          if task.project.title == project.title:
             task.print( options=options, outfile=outfile )
 
-def splitCriteria( criteria ):
-   projectCriteria = set()
-   taskCriteria = set()
-   for criterion in criteria.matchers:
-      if isinstance( criterion, Project.ProjectMatcher ):
-         projectCriteria.add( criterion )
-      else:
-         taskCriteria.add( criterion )
-   return projectCriteria, taskCriteria
-
 def doTaskAdd( taskApi, options, criteria, words, args ):
-   ( projectCriteria, _ ) = splitCriteria( criteria )
-   if not projectCriteria:
+   if criteria.hasInstanceOf( Task.TaskMatcher ):
+      raise RuntimeError( "Cannot use task criteria with this action" )
+   if not criteria.hasInstanceOf( Project.ProjectMatcher ):
       projectCriteria = [ Project.WordMatcher( "inbox" ) ]
    project = getMatchingProject( taskApi, options, criteria )
    task = project.newTask()
@@ -355,8 +345,7 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
       project.delete()
       print( "deleted: %s: %s" % ( project.shortId, project ), file=sys.stderr )
 
-   ( projectCriteria, _ ) = splitCriteria( criteria )
-   if not projectCriteria:
+   if not criteria.hasInstanceOf( Project.ProjectMatcher ):
       raise RuntimeError( "must specify project id(s) or name(s)" )
    projects = getMatchingProjects( taskApi, options, criteria )
    titles = set( [ p.title for p in projects ] )

@@ -212,9 +212,7 @@ class GoogleTasks:
    def tasks( self ):
       return self.service.tasks()
 
-   def getProjects( self, lastRead=False ):
-      if lastRead:
-         return self.projects
+   def getProjects( self ):
       first = True
       nextPage = None
       self.projects = []

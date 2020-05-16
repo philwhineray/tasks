@@ -162,8 +162,6 @@ def read( taskApi, options, infile=None ):
       original.title = task.title
       if "verbose" in options:
          original.notes = task.notes
-      if original.dueDate and task.dueDate and original.dueDate != task.dueDate:
-         print( "Warning: possible loss of time/repeat:", task, file=sys.stderr )
       original.dueDate = task.dueDate
       original.complete = task.complete
       toSave.add( original )

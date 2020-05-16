@@ -27,6 +27,20 @@ class GoogleTasks:
    allTasks = set()
    projects = None
 
+   def fromApiTime( dateTime ):
+      date = dateTime[ :10 ]
+      if dateTime[ 10: ] != "T00:00:00.000Z":
+         return date, dateTime[ 11:-8 ]
+      else:
+         return date, None
+
+   def toApiTime( date, time ):
+      if not date:
+         return None
+      if not time:
+         time = "00:00"
+      return date + "T" + time + ":00.000Z"
+
    class Project( Project.Project ):
       def __init__( self, taskApi, apiObject  ):
          super().__init__( apiObject[ 'title' ] )
@@ -86,10 +100,8 @@ class GoogleTasks:
          self.apiId = apiObject.get( 'id' )
          self.complete = apiObject.get( 'status' ) == "completed"
          if 'due' in apiObject:
-            self.dueDate = apiObject[ 'due' ][ :10 ]
-            if apiObject[ 'due' ][ 10: ] != "T00:00:00.000Z":
-               self.dueTime = apiObject[ 'due' ][ 11: ]
-               print( self.dueTime, file=sys.stderr )
+            self.dueDate, self.dueTime = GoogleTasks.fromApiTime(
+                  apiObject[ 'due' ] )
          self.notes = apiObject.get( 'notes' )
 
       def print( self, options=None, outfile=sys.stdout ):
@@ -99,17 +111,26 @@ class GoogleTasks:
 
       def save( self ):
          status = "completed" if self.complete else "needsAction"
+         due = GoogleTasks.toApiTime( self.dueDate, self.dueTime )
          apiMap = {
             'title': self.title,
             'status': status,
             'notes': self.notes,
+            'due': due,
          }
          updated = False
 
          for key, value in apiMap.items():
-            if self.apiObject.get( key ) != value:
-               self.apiObject[ key ] = value
+            original = self.apiObject.get( key )
+            if original != value:
+               if value is None:
+                  del self.apiObject[ key ]
+               else:
+                  self.apiObject[ key ] = value
                updated = True
+               if key == "due" and original is not None and value is not None:
+                  print( "Warning: possible loss of time/repeat:",
+                         self, file=sys.stderr )
 
          if self.apiId is None or self.projectId != self.project.apiId:
             oldId = self.apiId

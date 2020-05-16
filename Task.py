@@ -28,10 +28,10 @@ class Task():
    project = property( get_project, set_project )
 
    def save( self ):
-      raise NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Task.Task" )
 
    def delete( self ):
-      raise NotImplementedError( "must subclass Project.Project" )
+      raise NotImplementedError( "must subclass Task.Task" )
 
    def __str__( self ):
       if self.dueDate:
@@ -58,6 +58,8 @@ class Task():
    def parse( project, line ):
       match = re.match( r"\*+ \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
       if match:
+         if not project:
+            return True
          task = Task( project )
          task.shortId = match[ 1 ]
          task.complete = match[ 2 ] == 'X'

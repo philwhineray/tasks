@@ -264,12 +264,13 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
    while not success:
       subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
       try:
+         print( "Working..." )
          with open( taskFilePath, 'r' ) as taskFile:
             Project.read( taskApi, options, infile=taskFile )
             success = True
-      except RuntimeError as ex:
+      except Project.ParseError as ex:
          print( ex )
-         input( "Press Enter to continue..." )
+         input( "Press Enter to fix / Ctrl-C to abandon..." )
 
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )

@@ -85,8 +85,10 @@ def write( projects, options, criteria, outfile=sys.stdout ):
          project.print( options=options, outfile=outfile )
          printedProject.add( project )
 
-      if "all" in options or "includeEmptyProjects" in options or \
-            criteria.match( project ):
+      if ( "all" in options or
+            "includeEmptyProjects" in options or
+            ( criteria.match( project ) and
+              criteria.hasInstanceOf( ProjectMatcher ) ) ):
          printProjectIfNeeded()
 
       for task in Task.sort( project.tasks ):
@@ -96,19 +98,30 @@ def write( projects, options, criteria, outfile=sys.stdout ):
             printProjectIfNeeded()
             task.print( options=options, outfile=outfile )
 
+class ParseError( RuntimeError ):
+   pass
+
 def read( taskApi, options, infile=None ):
-   projects = taskApi.getProjects( lastRead=True )
+   projects = taskApi.getProjects()
+   # Force reading of all tasks, so we get consistent short Ids.
+   for project in Project.sort( projects ):
+      _ = project.tasks
+
+   projectTitles = set()
    projectById = {}
    taskById = {}
    for project in projects:
       projectById[ project.shortId ] = project
+      projectTitles.add( project.title )
       for task in project.tasks:
          taskById[ task.shortId ] = task
 
    currentProject = None
-   toDelete = set()
+   tasksToDelete = set()
+   projectsToDelete = set()
    projectsToSave = set()
    tasksToSave = set()
+   used = set()
    line = None
    lineNo = 0
    def readLine():
@@ -137,6 +150,8 @@ def read( taskApi, options, infile=None ):
       return Task.Task.parse( currentProject, line ) is not None
 
    def parseTask():
+      if not currentProject:
+         raise ParseError( "Line %d - task not in project: %s" % ( lineNo, line ) )
       task, isDeleted = Task.Task.parse( currentProject, line )
       if task is None:
          return
@@ -156,8 +171,12 @@ def read( taskApi, options, infile=None ):
       if not original:
          original = project.newTask()
 
+      if original in used:
+         raise ParseError( "Line %d - duplicate id: %s" % ( lineNo, original.shortId ) )
+      used.add( original )
+
       if isDeleted:
-         toDelete.add( original )
+         tasksToDelete.add( original )
          return
 
       original.title = task.title
@@ -178,13 +197,23 @@ def read( taskApi, options, infile=None ):
       project = Project.parse( line )
       if project is None:
          return
+
       original = projectById.get( project.shortId )
       if not original:
+         if project.title in projectTitles:
+            raise ParseError( "Line %d - project %s already exists, refusing to duplicate name" % ( lineNo, project.title ) )
          original = taskApi.newProject()
 
-      original.title = project.title
-      projectsToSave.add( original )
-      currentProject = original
+      if original in used:
+         raise ParseError( "Line %d - duplicate id: %s" % ( lineNo, original.shortId ) )
+      used.add( original )
+
+      if project.title == "-":
+         projectsToDelete.add( original )
+      else:
+         original.title = project.title
+         projectsToSave.add( original )
+         currentProject = original
 
       readLine()
       if isComment():
@@ -201,13 +230,21 @@ def read( taskApi, options, infile=None ):
          parseProject()
 
       if line and not isProject():
-         raise RuntimeError( "Line %d - expected project, got: %s" % ( lineNo, line ) )
+         raise ParseError( "Line %d - expected project, got: %s" % ( lineNo, line ) )
 
    parseFile()
+   for project in projectsToDelete:
+      if project.tasks:
+         raise ParseError( "Project %s has tasks, refusing to delete" % project.shortId )
+
    for item in projectsToSave:
       item.save()
    for item in tasksToSave:
       item.save()
+   for item in tasksToDelete:
+      item.delete()
+   for project in projectsToDelete:
+      project.delete()
 
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):

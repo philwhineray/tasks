@@ -218,6 +218,7 @@ class GoogleTasks:
       first = True
       nextPage = None
       self.projects = []
+      self.allTasks = set()
       while nextPage or first:
          first = False
          result = self.service.tasklists().list( maxResults=100,

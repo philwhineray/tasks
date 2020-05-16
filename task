@@ -240,6 +240,15 @@ def doTaskTag( taskApi, options, criteria, words, args ):
    raise NotImplementedError( "doTasksTag" )
 
 def doTasksBulk( taskApi, options, criteria, words, args ):
+   helptext = '''#
+# N.B. Comments only valid at top of file
+# New project/task format:
+#  * (p) Title
+#  * (t) [ ] [YYYY-MM-DD] Title
+# To delete (deleting from the file ignores):
+#  * (pXX) -
+#  * (tXXX) [-] ...
+#'''
    allowed =( "verbose", )
    for key in options.keys():
       if key in ( "all", ):
@@ -258,6 +267,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
    taskFilePath = args[ 'tempdir' ] + '/tasks.txt'
    taskFile = open( taskFilePath, 'w')
    with open( taskFilePath, 'w' ) as taskFile:
+      print( helptext, file=taskFile )
       Project.write( projects, options, criteria, outfile=taskFile )
 
    success = False

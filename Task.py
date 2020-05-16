@@ -47,7 +47,7 @@ class Task():
          completeMark = "[X]"
       else:
          completeMark = "[ ]"
-      return self.shortId + " " + completeMark + " " + str( self )
+      return "*" + " (" + self.shortId + ") " + completeMark + " " + str( self )
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.lineString(), file=outfile )
@@ -56,7 +56,7 @@ class Task():
          print( "", file=outfile )
 
    def parse( project, line ):
-      match = re.match( r"(t[0-9a-f]*) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      match = re.match( r"\*+ \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
       if match:
          task = Task( project )
          task.shortId = match[ 1 ]

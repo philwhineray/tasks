@@ -61,7 +61,7 @@ class Project:
       return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
 
    def parse( line ):
-      match = re.match( r"^[*] \((p[0-9a-f]+)\) (.*)", line )
+      match = re.match( r"^[*] \((p[0-9a-f]*)\) (.*)", line )
       if match:
          project = Project( match[ 2 ] )
          project.shortId = match[ 1 ]
@@ -85,7 +85,8 @@ def write( projects, options, criteria, outfile=sys.stdout ):
          project.print( options=options, outfile=outfile )
          printedProject.add( project )
 
-      if "all" in options or "includeEmptyProjects" in options:
+      if "all" in options or "includeEmptyProjects" in options or \
+            criteria.match( project ):
          printProjectIfNeeded()
 
       for task in Task.sort( project.tasks ):
@@ -106,7 +107,8 @@ def read( taskApi, options, infile=None ):
 
    currentProject = None
    toDelete = set()
-   toSave = set()
+   projectsToSave = set()
+   tasksToSave = set()
    line = None
    lineNo = 0
    def readLine():
@@ -150,10 +152,9 @@ def read( taskApi, options, infile=None ):
       if task.notes:
          task.notes = task.notes.strip()
 
-      original = taskById[ task.shortId ]
+      original = taskById.get( task.shortId )
       if not original:
-         # TODO: add new
-         return
+         original = project.newTask()
 
       if isDeleted:
          toDelete.add( original )
@@ -165,7 +166,7 @@ def read( taskApi, options, infile=None ):
       original.dueDate = task.dueDate
       original.complete = task.complete
       original.project = task.project
-      toSave.add( original )
+      tasksToSave.add( original )
 
    def isProject():
       if line is None:
@@ -177,14 +178,12 @@ def read( taskApi, options, infile=None ):
       project = Project.parse( line )
       if project is None:
          return
-      original = projectById[ project.shortId ]
+      original = projectById.get( project.shortId )
       if not original:
-         # TODO: add new
-         currentProject = None
-         return
+         original = taskApi.newProject()
 
       original.title = project.title
-      toSave.add( original )
+      projectsToSave.add( original )
       currentProject = original
 
       readLine()
@@ -205,7 +204,9 @@ def read( taskApi, options, infile=None ):
          raise RuntimeError( "Line %d - expected project, got: %s" % ( lineNo, line ) )
 
    parseFile()
-   for item in toSave:
+   for item in projectsToSave:
+      item.save()
+   for item in tasksToSave:
       item.save()
 
 class ProjectMatcher( Matcher.Matcher ):

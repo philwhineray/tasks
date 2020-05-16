@@ -56,7 +56,7 @@ class Task():
          print( "", file=outfile )
 
    def parse( project, line ):
-      match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      match = re.match( r"(t[0-9a-f]*) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
       if match:
          task = Task( project )
          task.shortId = match[ 1 ]

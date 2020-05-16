@@ -43,11 +43,11 @@ class GoogleTasks:
 
    class Project( Project.Project ):
       def __init__( self, taskApi, apiObject  ):
-         super().__init__( apiObject[ 'title' ] )
+         super().__init__( apiObject.get( 'title' ) )
          self.loaded = False
          self.taskApi = taskApi
          self.apiObject = apiObject
-         self.apiId = apiObject[ 'id' ]
+         self.apiId = apiObject.get( 'id' )
 
       def print( self, options=None, outfile=sys.stdout ):
          if options and "debug" in options:
@@ -60,10 +60,16 @@ class GoogleTasks:
          }
          updated = False
          for key, value in apiMap.items():
-            if self.apiObject[ key ] != value:
+            original = self.apiObject.get( key )
+            if original != value:
                self.apiObject[ key ] = value
                updated = True
-         if updated:
+
+         if self.apiId is None:
+            self.apiObject = self.taskApi.tasklists().insert(
+                  body=self.apiObject ).execute()
+            self.apiId = self.apiObject[ 'id' ]
+         elif updated:
             self.taskApi.tasklists().update(
                   tasklist=self.apiId,
                   body=self.apiObject ).execute()
@@ -136,9 +142,10 @@ class GoogleTasks:
             oldId = self.apiId
             oldProjectId = self.projectId
             self.projectId = self.project.apiId
-            self.taskApi.tasks().insert(
-                  tasklist=self.projectId,
-                  body=self.apiObject ).execute()
+            self.apiObject = self.taskApi.tasks().insert(
+                                tasklist=self.projectId,
+                                body=self.apiObject ).execute()
+            self.apiId = self.apiObject[ 'id' ]
             self.taskApi.invalidateProjectCache( self.projectId )
             if oldId is not None:
                self.taskApi.tasks().delete(
@@ -221,12 +228,8 @@ class GoogleTasks:
       updateShortIds( self.projects, "p" )
       return self.projects
 
-   def addProject( self, project ):
-      body = {
-        "title": project.title,
-      }
-      apiObject = self.service.tasklists().insert( body=body ).execute()
-      return GoogleTasks.Project( self.service, apiObject )
+   def newProject( self ):
+      return GoogleTasks.Project( self, {} )
 
    def invalidateProjectCache( self, projectId ):
       # TODO - can we make it more fine-grained?

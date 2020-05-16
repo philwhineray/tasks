@@ -38,7 +38,16 @@ Limitations
 ===========
 
 At present the google tasks API does not show / permit setting the
-time of a task, even though their own tools can do this. See "due":
+time or repetition of a task, even though their own tools can do this.
+See "due":
 
 * https://developers.google.com/tasks/v1/reference/tasks
 * https://stackoverflow.com/questions/55251751/tasks-now-have-a-due-time-as-well-as-date-but-api-still-says-000000
+
+In practice, setting the date of a task will lose its time, if it
+had one. The repetition does not get modified as far as I can see.
+The tool tries to warn you if you edit a date.
+
+Things can get pretty confused if you delete the date for a
+repeating task, and we can't warn about that because the API does not
+expose that information.

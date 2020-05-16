@@ -60,6 +60,14 @@ class Project:
    def sort( projects ):
       return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
 
+   def parse( line ):
+      match = re.match( r"^[*] \((p[0-9a-f]+)\) (.*)", line )
+      if match:
+         project = Project( match[ 2 ] )
+         project.shortId = match[ 1 ]
+         return project
+      return None
+
 def write( projects, options, criteria, outfile=sys.stdout ):
    printedProject = set()
 
@@ -87,45 +95,119 @@ def write( projects, options, criteria, outfile=sys.stdout ):
             printProjectIfNeeded()
             task.print( options=options, outfile=outfile )
 
-def read( projects, options, infile=None ):
-   projectByName = {}
+def read( taskApi, options, infile=None ):
+   projects = taskApi.getProjects( lastRead=True )
+   projectById = {}
    taskById = {}
    for project in projects:
-      projectByName[ project.title ] = project
+      projectById[ project.shortId ] = project
       for task in project.tasks:
          taskById[ task.shortId ] = task
 
+   currentProject = None
+   toDelete = set()
    toSave = set()
-   project = None
-   for line in infile:
-      match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
-      if match:
-         taskId = match[ 1 ]
-         complete = match[ 2 ] == 'X'
-         delete = match[ 2 ] == '-'
-         date = match[ 4 ]
-         title = match[ 5 ]
+   line = None
+   lineNo = 0
+   def readLine():
+      nonlocal line, lineNo
+      if not infile.readable():
+         line = None
+         return
+      line = infile.readline()
+      if line == '':
+         line = None
+         return
+      lineNo += 1
 
-         task = taskById[ taskId ]
-         if delete:
-            task.delete()
-         if complete:
-            task.complete = True
-            toSave.add( task )
-         if task.title != title:
-            task.title = title
-            toSave.add( task )
-         if task.project.title != project.title:
-            if "due" in task.apiObject:
-               print( "Warning: possible loss of time/repeat:",
-                      task.lineString() )
-            task.project = project
-            toSave.add( task )
-         # TODO edit task date?
-      elif re.match( r"[A-Za-z0-9_]", line ):
-         project = projectByName[ line.strip() ]
-   for task in toSave:
-      task.save()
+   def isComment():
+      if line is None:
+         return False
+      return re.match( "^\s*$", line ) or re.match( "^#", line )
+
+   def parseComment():
+      while isComment():
+         readLine()
+
+   def isTask():
+      if line is None:
+         return False
+      return Task.Task.parse( currentProject, line ) is not None
+
+   def parseTask():
+      task, isDeleted = Task.Task.parse( currentProject, line )
+      if task is None:
+         return
+      readLine()
+      while ( line is not None and
+              not isTask() and
+              not isProject() ):
+         if task.notes:
+            task.notes += line
+         else:
+            task.notes = line
+         readLine()
+      if task.notes:
+         task.notes = task.notes.strip()
+
+      original = taskById[ task.shortId ]
+      if not original:
+         # TODO: add new
+         return
+
+      if isDeleted:
+         toDelete.add( original )
+         return
+
+      original.title = task.title
+      if "verbose" in options:
+         original.notes = task.notes
+      if original.dueDate and task.dueDate and original.dueDate != task.dueDate:
+         print( "Warning: possible loss of time/repeat:", task, file=sys.stderr )
+      original.dueDate = task.dueDate
+      original.complete = task.complete
+      toSave.add( original )
+
+   def isProject():
+      if line is None:
+         return False
+      return Project.parse( line ) is not None
+
+   def parseProject():
+      nonlocal currentProject
+      project = Project.parse( line )
+      if project is None:
+         return
+      original = projectById[ project.shortId ]
+      if not original:
+         # TODO: add new
+         currentProject = None
+         return
+
+      original.title = project.title
+      toSave.add( original )
+      currentProject = original
+
+      readLine()
+      if isComment():
+         parseComment()
+      while isTask():
+         parseTask()
+
+   def parseFile():
+      readLine()
+      if isComment():
+         parseComment()
+
+      while isProject():
+         parseProject()
+
+      if line and not isProject():
+         raise RuntimeError( "Line %d - expected project, got: %s" % ( lineNo, line ) )
+
+   parseFile()
+   for item in toSave:
+      item.save()
 
 class ProjectMatcher( Matcher.Matcher ):
    def isProject( projectOrTask ):

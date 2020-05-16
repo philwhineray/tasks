@@ -25,6 +25,7 @@ class GoogleTasks:
    appCredentialsFileName = '/app-credentials.json'
    userCredentialsFileName = '/user-token.pickle'
    allTasks = set()
+   projects = None
 
    class Project( Project.Project ):
       def __init__( self, taskApi, apiObject  ):
@@ -101,6 +102,7 @@ class GoogleTasks:
          apiMap = {
             'title': self.title,
             'status': status,
+            'notes': self.notes,
          }
          updated = False
 
@@ -182,19 +184,21 @@ class GoogleTasks:
    def tasks( self ):
       return self.service.tasks()
 
-   def getProjects( self ):
+   def getProjects( self, lastRead=False ):
+      if lastRead:
+         return self.projects
       first = True
       nextPage = None
-      projects = []
+      self.projects = []
       while nextPage or first:
          first = False
          result = self.service.tasklists().list( maxResults=100,
                                                  pageToken=nextPage ).execute()
          for apiObject in result.get( 'items', [] ):
-            projects.append( GoogleTasks.Project( self, apiObject ) )
+            self.projects.append( GoogleTasks.Project( self, apiObject ) )
          nextPage = result.get( 'nextPageToken', None )
-      updateShortIds( projects, "p" )
-      return projects
+      updateShortIds( self.projects, "p" )
+      return self.projects
 
    def addProject( self, project ):
       body = {

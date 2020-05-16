@@ -240,9 +240,13 @@ def doTaskTag( taskApi, options, criteria, words, args ):
    raise NotImplementedError( "doTasksTag" )
 
 def doTasksBulk( taskApi, options, criteria, words, args ):
-   if options:
-      # If options are ever allowed, ensure "all" is still disallowed.
-      raise RuntimeError( "bulk: takes no options" )
+   allowed =( "verbose", )
+   for key in options.keys():
+      if key in ( "all", ):
+         raise RuntimeError( "bulk: 'all' option would be too dangerous" )
+      if key in allowed:
+         continue
+      raise RuntimeError( "bulk: %s not in allowed option list: %s" % ( key, allowed ) )
    if criteria.hasInstanceOf( Task.TaskMatcher ):
       raise RuntimeError( "Cannot use task criteria with this action" )
 
@@ -254,10 +258,16 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
       options[ "includeEmptyProjects" ] = True
       Project.write( projects, options, criteria, outfile=taskFile )
 
-   subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
-
-   with open( taskFilePath, 'r' ) as taskFile:
-      Project.read( projects, options, infile=taskFile )
+   success = False
+   while not success:
+      subprocess.run( [ os.environ.get( 'EDITOR', 'vi' ), taskFilePath ] )
+      try:
+         with open( taskFilePath, 'r' ) as taskFile:
+            Project.read( taskApi, options, infile=taskFile )
+            success = True
+      except RuntimeError as ex:
+         print( ex )
+         input( "Press Enter to continue..." )
 
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )

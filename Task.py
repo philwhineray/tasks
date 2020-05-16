@@ -43,13 +43,29 @@ class Task():
       return self.title
 
    def lineString( self ):
-      completeMark = "[X]" if self.complete else "[ ]"
+      if self.complete:
+         completeMark = "[X]"
+      else:
+         completeMark = "[ ]"
       return self.shortId + " " + completeMark + " " + str( self )
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.lineString(), file=outfile )
       if options and "verbose" in options and self.notes is not None:
-         print( "  ", self.notes, file=outfile )
+         print( self.notes, file=outfile )
+         print( "", file=outfile )
+
+   def parse( project, line ):
+      match = re.match( r"(t[0-9a-f]+) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      if match:
+         task = Task( project )
+         task.shortId = match[ 1 ]
+         task.complete = match[ 2 ] == 'X'
+         task.dueDate = match[ 4 ]
+         task.title = match[ 5 ]
+         deleted = match[ 2 ] == '-'
+         return task, deleted
+      return None
 
 def sort( tasks ):
    # Ensure items with due dates are at the top and in order.

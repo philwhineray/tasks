@@ -164,6 +164,7 @@ def read( taskApi, options, infile=None ):
          original.notes = task.notes
       original.dueDate = task.dueDate
       original.complete = task.complete
+      original.project = task.project
       toSave.add( original )
 
    def isProject():

@@ -306,10 +306,8 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
    if not criteria.hasInstanceOf( Project.ProjectMatcher ):
       raise RuntimeError( "must specify project id(s) or name(s)" )
    projects = getMatchingProjects( taskApi, options, criteria )
-   titles = set( [ p.title for p in projects ] )
    for project in projects:
-      if project.title in titles:
-         delProject( project, "force" in options )
+      delProject( project, "force" in options )
 
 if __name__ == '__main__':
    program = sys.argv.pop( 0 )

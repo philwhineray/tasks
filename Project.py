@@ -32,11 +32,11 @@ class Project:
 
    tasks = property( get_tasks )
 
-   def print( self, options=None, outfile=sys.stdout ):
-      print( self.title, file=outfile )
-
    def __str__( self ):
-      return self.title
+      return "* (" + self.shortId + ") " + self.title
+
+   def print( self, options=None, outfile=sys.stdout ):
+      print( self, file=outfile )
 
    def matchingTasks( self, options, criteria ):
       match = set()

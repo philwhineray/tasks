@@ -86,6 +86,13 @@ class GoogleTasks:
             for apiObject in self.taskApi._getRawTasks( self ):
                GoogleTasks.Task( self, apiObject )
             self.taskApi.assignTaskIds( self._tasks )
+            taskById = {}
+            for task in self._tasks:
+               taskById[ task.apiId ] = task
+            for task in self._tasks:
+               parentId = task.apiObject.get( 'parent' )
+               if parentId is not None:
+                  task.parentTask = taskById[ parentId ]
          return super().get_tasks()
 
       tasks = property( get_tasks )

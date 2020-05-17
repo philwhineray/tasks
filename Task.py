@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
+import functools
 import re
 import sys
 
@@ -11,6 +12,7 @@ class Task():
       self.shortId = None
       self._project = project
       self._project.addTask( self )
+      self.parentTask = None
       self.title = None
       self.notes = None
       self.complete = False
@@ -33,6 +35,14 @@ class Task():
    def delete( self ):
       raise NotImplementedError( "must subclass Task.Task" )
 
+   def hasAncestor( self, possibleAncestor ):
+      parent = self.parentTask
+      while parent:
+         if parent == possibleAncestor:
+            return True
+         parent = parent.parentTask
+      return False
+
    def __str__( self ):
       if self.dueDate:
          due = "[" + self.dueDate
@@ -47,7 +57,12 @@ class Task():
          completeMark = "[X]"
       else:
          completeMark = "[ ]"
-      return "*" + " (" + self.shortId + ") " + completeMark + " " + str( self )
+      depth = "*"
+      parent = self.parentTask
+      while parent:
+         depth += "*"
+         parent = parent.parentTask
+      return depth + " (" + self.shortId + ") " + completeMark + " " + str( self )
 
    def print( self, options=None, outfile=sys.stdout ):
       print( self.lineString(), file=outfile )
@@ -69,9 +84,49 @@ class Task():
          return task, deleted
       return None
 
-def sort( tasks ):
-   # Ensure items with due dates are at the top and in order.
-   return sorted( tasks, key=lambda t: ( t.apiObject.get( 'due', "ZZZZ" ), t.title.upper() ) )
+def sort( tasks, alphabetical=True ):
+   # Parent tasks inherit due dates from their children.
+   earliestDue = {}
+   for task in tasks:
+      earliest = earliestDue.get( task, "ZZZZ" )
+      if task.dueDate and task.dueDate < earliest:
+         earliest = task.dueDate
+      earliestDue[ task ] = earliest
+      if not task.dueDate:
+         continue
+      parent = task.parentTask
+      while parent:
+         earliest = earliestDue.get( parent, "ZZZZ" )
+         if task.dueDate < earliest:
+            earliest = task.dueDate
+         earliestDue[ parent ] = earliest
+         parent = parent.parentTask
+
+   def sortCompare( a, b ):
+      if a.hasAncestor( b ):
+         return 1
+      elif b.hasAncestor( a ):
+         return -1
+
+      if earliestDue[ a ] < earliestDue[ b ]:
+         return -1
+      elif earliestDue[ b ] > earliestDue[ a ]:
+         return 1
+
+      if alphabetical:
+         keyA = a.title.upper()
+         keyB = b.title.upper()
+      else:
+         keyA = a.apiObject.get( 'position', a.title.upper() )
+         keyB = b.apiObject.get( 'position', b.title.upper() )
+
+      if keyA < keyB:
+         return -1
+      elif keyB < keyA:
+         return 1
+      return 0
+
+   return sorted( tasks, key=functools.cmp_to_key( sortCompare ) )
 
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):

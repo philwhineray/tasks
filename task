@@ -244,10 +244,10 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
 # N.B. Comments only valid at top of file
 # New project/task format:
 #  * (p) Title
-#  * (t) [ ] [YYYY-MM-DD] Title
+#  ** (t) [ ] [YYYY-MM-DD] Title
 # To delete (deleting from the file ignores):
 #  * (pXX) -
-#  * (tXXX) [-] ...
+#  ** (tXXX) [-] ...
 #'''
    allowed =( "verbose", )
    for key in options.keys():
@@ -264,7 +264,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
 
    projects = taskApi.getProjects()
 
-   taskFilePath = args[ 'tempdir' ] + '/tasks.txt'
+   taskFilePath = args[ 'tempdir' ] + '/tasks.org'
    taskFile = open( taskFilePath, 'w')
    with open( taskFilePath, 'w' ) as taskFile:
       print( helptext, file=taskFile )

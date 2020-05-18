@@ -57,7 +57,7 @@ class Task():
          completeMark = "[X]"
       else:
          completeMark = "[ ]"
-      depth = "*"
+      depth = "**"
       parent = self.parentTask
       while parent:
          depth += "*"
@@ -71,13 +71,13 @@ class Task():
          print( "", file=outfile )
 
    def parse( project, line ):
-      match = re.match( r"\*+ \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      match = re.match( r"\*\*+ \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
       if match:
          if not project:
             return True
          task = Task( project )
          task.shortId = match[ 1 ]
-         task.complete = match[ 2 ] == 'X'
+         task.complete = match[ 2 ].upper() == 'X'
          task.dueDate = match[ 4 ]
          task.title = match[ 5 ]
          deleted = match[ 2 ] == '-'

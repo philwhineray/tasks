@@ -12,7 +12,8 @@ class Task():
       self.shortId = None
       self._project = project
       self._project.addTask( self )
-      self.parentTask = None
+      self._parentTask = None
+      self.childTasks = set()
       self.title = None
       self.notes = None
       self.complete = False
@@ -28,6 +29,17 @@ class Task():
       self._project.addTask( self )
 
    project = property( get_project, set_project )
+
+   def get_parentTask( self ):
+      return self._parentTask
+
+   def set_parentTask( self, parentTask ):
+      if self._parentTask:
+         self._parentTask.childTasks.remove( self )
+      self._parentTask = parentTask
+      self._parentTask.childTasks.add( self )
+
+   parentTask = property( get_parentTask, set_parentTask )
 
    def save( self ):
       raise NotImplementedError( "must subclass Task.Task" )
@@ -84,49 +96,33 @@ class Task():
          return task, deleted
       return None
 
-def sort( tasks, alphabetical=True ):
-   # Parent tasks inherit due dates from their children.
-   earliestDue = {}
-   for task in tasks:
-      earliest = earliestDue.get( task, "ZZZZ" )
-      if task.dueDate and task.dueDate < earliest:
-         earliest = task.dueDate
-      earliestDue[ task ] = earliest
-      if not task.dueDate:
-         continue
-      parent = task.parentTask
-      while parent:
-         earliest = earliestDue.get( parent, "ZZZZ" )
-         if task.dueDate < earliest:
-            earliest = task.dueDate
-         earliestDue[ parent ] = earliest
-         parent = parent.parentTask
+   def sortKey( self, alphabetic ):
+      def partialKey( task, alphabetic ):
+         def earliestDue( task ):
+            dueDate = task.dueDate if task.dueDate else "ZZZZ-ZZ-ZZ"
+            for t in task.childTasks:
+               d = earliestDue( t )
+               if d < dueDate:
+                  dueDate = d
+            return dueDate
 
-   def sortCompare( a, b ):
-      if a.hasAncestor( b ):
-         return 1
-      elif b.hasAncestor( a ):
-         return -1
+         dateKey = earliestDue( task )
+         position = task.apiObject.get( 'position', task.title.upper() )
+         posKey = task.title.upper() if alphabetic else position
+         return ( dateKey, posKey )
 
-      if earliestDue[ a ] < earliestDue[ b ]:
-         return -1
-      elif earliestDue[ b ] > earliestDue[ a ]:
-         return 1
+      key = []
+      task = self
+      while task:
+         key.insert( 0, partialKey( task, alphabetic ) )
+         task = task.parentTask
+      return key
 
-      if alphabetical:
-         keyA = a.title.upper()
-         keyB = b.title.upper()
-      else:
-         keyA = a.apiObject.get( 'position', a.title.upper() )
-         keyB = b.apiObject.get( 'position', b.title.upper() )
+   def alphabeticalKey( self ):
+      return self.sortKey( True )
 
-      if keyA < keyB:
-         return -1
-      elif keyB < keyA:
-         return 1
-      return 0
-
-   return sorted( tasks, key=functools.cmp_to_key( sortCompare ) )
+   def positionKey( self ):
+      return self.sortKey( False )
 
 class TaskMatcher( Matcher.Matcher ):
    def isTask( projectOrTask ):

@@ -91,7 +91,8 @@ def write( projects, options, criteria, outfile=sys.stdout ):
               criteria.hasInstanceOf( ProjectMatcher ) ) ):
          printProjectIfNeeded()
 
-      for task in Task.sort( project.tasks ):
+      sortKey = Task.Task.positionKey
+      for task in sorted( project.tasks, key=sortKey ):
          if task.complete and "all" not in options:
             continue
          if criteria.match( task ):

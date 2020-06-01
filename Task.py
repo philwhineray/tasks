@@ -13,6 +13,7 @@ class Task():
       self._project = project
       self._project.addTask( self )
       self._parentTask = None
+      self.position = 0
       self.childTasks = set()
       self.title = None
       self.notes = None
@@ -37,7 +38,8 @@ class Task():
       if self._parentTask:
          self._parentTask.childTasks.remove( self )
       self._parentTask = parentTask
-      self._parentTask.childTasks.add( self )
+      if self._parentTask:
+         self._parentTask.childTasks.add( self )
 
    parentTask = property( get_parentTask, set_parentTask )
 
@@ -54,6 +56,14 @@ class Task():
             return True
          parent = parent.parentTask
       return False
+
+   def level( self ):
+      l = 0
+      parent = self.parentTask
+      while parent:
+         l += 1
+         parent = parent.parentTask
+      return l
 
    def __str__( self ):
       if self.dueDate:
@@ -83,17 +93,18 @@ class Task():
          print( "", file=outfile )
 
    def parse( project, line ):
-      match = re.match( r"\*\*+ \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
+      match = re.match( r"\*(\*+) \((t[0-9a-f]*)\) +\[([ X-])\] +(\[([0-9-]+)\] +)?(.*)", line )
       if match:
          if not project:
             return True
          task = Task( project )
-         task.shortId = match[ 1 ]
-         task.complete = match[ 2 ].upper() == 'X'
-         task.dueDate = match[ 4 ]
-         task.title = match[ 5 ]
-         deleted = match[ 2 ] == '-'
-         return task, deleted
+         task.shortId = match[ 2 ]
+         task.complete = match[ 3 ].upper() == 'X'
+         task.dueDate = match[ 5 ]
+         task.title = match[ 6 ]
+         deleted = match[ 3 ] == '-'
+         level = len( match[ 1 ] ) - 1
+         return task, deleted, level
       return None
 
    def sortKey( self, alphabetic ):
@@ -107,8 +118,7 @@ class Task():
             return dueDate
 
          dateKey = earliestDue( task )
-         position = task.apiObject.get( 'position', task.title.upper() )
-         posKey = task.title.upper() if alphabetic else position
+         posKey = task.title.upper() if alphabetic else task.position
          return ( dateKey, posKey )
 
       key = []

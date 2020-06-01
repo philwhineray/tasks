@@ -111,6 +111,7 @@ class GoogleTasks:
          self.apiObject = apiObject
          self.title = apiObject.get( 'title' )
          self.apiId = apiObject.get( 'id' )
+         self.position = int( apiObject.get( 'position', '0' ) )
          self.complete = apiObject.get( 'status' ) == "completed"
          if 'due' in apiObject:
             self.dueDate, self.dueTime = GoogleTasks.fromApiTime(
@@ -125,6 +126,7 @@ class GoogleTasks:
       def save( self ):
          status = "completed" if self.complete else "needsAction"
          due = GoogleTasks.toApiTime( self.dueDate, self.dueTime )
+         position = "%020d" % self.position
          apiMap = {
             'title': self.title,
             'status': status,
@@ -164,6 +166,20 @@ class GoogleTasks:
                   tasklist=self.projectId,
                   task=self.apiId,
                   body=self.apiObject ).execute()
+            self.taskApi.invalidateProjectCache( self.projectId )
+
+         parentId = None if self.parentTask is None else self.parentTask.apiId
+         if self.apiObject.get( 'parent' ) != parentId:
+            previousId = None
+            moveParam = {
+                  'tasklist': self.projectId,
+                  'task': self.apiId,
+            }
+            if parentId is not None:
+               moveParam[ 'parent' ] = parentId
+            if previousId is not None:
+               moveParam[ 'previous' ] = previousId
+            self.taskApi.tasks().move( **moveParam ).execute()
             self.taskApi.invalidateProjectCache( self.projectId )
 
       def delete( self ):

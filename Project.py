@@ -118,6 +118,9 @@ def read( taskApi, options, infile=None ):
          taskById[ task.shortId ] = task
 
    currentProject = None
+   prevTask = None
+   prevLevel = None
+   posInParent = {}
    tasksToDelete = set()
    projectsToDelete = set()
    projectsToSave = set()
@@ -151,9 +154,10 @@ def read( taskApi, options, infile=None ):
       return Task.Task.parse( currentProject, line ) is not None
 
    def parseTask():
+      nonlocal prevTask, prevLevel
       if not currentProject:
          raise ParseError( "Line %d - task not in project: %s" % ( lineNo, line ) )
-      task, isDeleted = Task.Task.parse( currentProject, line )
+      task, isDeleted, level = Task.Task.parse( currentProject, line )
       if task is None:
          return
       readLine()
@@ -186,7 +190,33 @@ def read( taskApi, options, infile=None ):
       original.dueDate = task.dueDate
       original.complete = task.complete
       original.project = task.project
+
+      if prevTask is None:
+         if level != 0:
+            raise ParseError( "Line %d - cannot start from level %d" % ( lineNo, level ) )
+         original.parentTask = None
+         posInParentKey = original.project
+      elif level > prevTask.level() + 1:
+         raise ParseError( "Line %d - cannot jump from level %d to %d" % ( lineNo, prevTask.level(), level ) )
+      else:
+         parent = prevTask
+         parentLevel = parent.level()
+         while parentLevel >= level:
+            parent = parent.parentTask
+            parentLevel -= 1
+         levelBefore = original.level()
+         original.parentTask = parent
+         levelAfter = original.level()
+         posInParentKey = parent
+
+      pos = posInParent.get( posInParentKey, 0 )
+      if original.position < pos:
+         original.position = pos
+      posInParent[ posInParentKey ] = original.position + 1
+
       tasksToSave.add( original )
+      prevTask = original
+      prevLevel = original.level()
 
    def isProject():
       if line is None:

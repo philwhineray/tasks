@@ -111,12 +111,14 @@ class GoogleTasks:
          self.apiObject = apiObject
          self.title = apiObject.get( 'title' )
          self.apiId = apiObject.get( 'id' )
-         self.position = int( apiObject.get( 'position', '0' ) )
          self.complete = apiObject.get( 'status' ) == "completed"
          if 'due' in apiObject:
             self.dueDate, self.dueTime = GoogleTasks.fromApiTime(
                   apiObject[ 'due' ] )
          self.notes = apiObject.get( 'notes' )
+
+      def apiOrderKey( self ):
+         return int( self.apiObject.get( 'position', '0' ) )
 
       def print( self, options=None, outfile=sys.stdout ):
          if options and "debug" in options:
@@ -126,7 +128,6 @@ class GoogleTasks:
       def save( self ):
          status = "completed" if self.complete else "needsAction"
          due = GoogleTasks.toApiTime( self.dueDate, self.dueTime )
-         position = "%020d" % self.position
          apiMap = {
             'title': self.title,
             'status': status,

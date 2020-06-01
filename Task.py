@@ -13,8 +13,8 @@ class Task():
       self._project = project
       self._project.addTask( self )
       self._parentTask = None
-      self.position = 0
       self.childTasks = set()
+      self.previousTask = 0
       self.title = None
       self.notes = None
       self.complete = False
@@ -47,6 +47,9 @@ class Task():
       raise NotImplementedError( "must subclass Task.Task" )
 
    def delete( self ):
+      raise NotImplementedError( "must subclass Task.Task" )
+
+   def apiOrderKey( self ):
       raise NotImplementedError( "must subclass Task.Task" )
 
    def hasAncestor( self, possibleAncestor ):
@@ -118,7 +121,7 @@ class Task():
             return dueDate
 
          dateKey = earliestDue( task )
-         posKey = task.title.upper() if alphabetic else task.position
+         posKey = task.title.upper() if alphabetic else task.apiOrderKey()
          return ( dateKey, posKey )
 
       key = []

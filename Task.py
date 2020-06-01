@@ -14,7 +14,7 @@ class Task():
       self._project.addTask( self )
       self._parentTask = None
       self.childTasks = set()
-      self.previousTask = 0
+      self.previousTask = None
       self.title = None
       self.notes = None
       self.complete = False
@@ -28,6 +28,7 @@ class Task():
       self._project.removeTask( self )
       self._project = project
       self._project.addTask( self )
+      self.previousTask = None
 
    project = property( get_project, set_project )
 

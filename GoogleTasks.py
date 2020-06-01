@@ -89,10 +89,19 @@ class GoogleTasks:
             taskById = {}
             for task in self._tasks:
                taskById[ task.apiId ] = task
-            for task in self._tasks:
+            previousByParentId = {}
+            for task in sorted( self._tasks, key=Task.Task.positionKey ):
                parentId = task.apiObject.get( 'parent' )
                if parentId is not None:
                   task.parentTask = taskById[ parentId ]
+               predecessorId = previousByParentId.get( parentId )
+               if predecessorId is not None:
+                  task.predecessorId = predecessorId
+                  task.previousTask = taskById[ predecessorId ]
+               else:
+                  task.predecessorId = None
+                  task.previousTask = None
+               previousByParentId[ parentId ] = task.apiId
          return super().get_tasks()
 
       tasks = property( get_tasks )
@@ -170,16 +179,16 @@ class GoogleTasks:
             self.taskApi.invalidateProjectCache( self.projectId )
 
          parentId = None if self.parentTask is None else self.parentTask.apiId
-         if self.apiObject.get( 'parent' ) != parentId:
-            previousId = None
+         predecessorId = None if self.previousTask is None else self.previousTask.apiId
+         if self.apiObject.get( 'parent' ) != parentId or self.predecessorId != predecessorId:
             moveParam = {
                   'tasklist': self.projectId,
                   'task': self.apiId,
             }
             if parentId is not None:
                moveParam[ 'parent' ] = parentId
-            if previousId is not None:
-               moveParam[ 'previous' ] = previousId
+            if predecessorId is not None:
+               moveParam[ 'previous' ] = predecessorId
             self.taskApi.tasks().move( **moveParam ).execute()
             self.taskApi.invalidateProjectCache( self.projectId )
 

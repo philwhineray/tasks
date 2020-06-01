@@ -120,11 +120,11 @@ def read( taskApi, options, infile=None ):
    currentProject = None
    prevTask = None
    prevLevel = None
-   posInParent = {}
+   lastInParent = {}
    tasksToDelete = set()
    projectsToDelete = set()
    projectsToSave = set()
-   tasksToSave = set()
+   tasksToSave = []
    used = set()
    line = None
    lineNo = 0
@@ -209,14 +209,14 @@ def read( taskApi, options, infile=None ):
          levelAfter = original.level()
          posInParentKey = parent
 
-      pos = posInParent.get( posInParentKey, 0 )
-      if original.position < pos:
-         original.position = pos
-      posInParent[ posInParentKey ] = original.position + 1
+      predecessor = lastInParent.get( original.parentTask, None )
+      original.previousTask = predecessor
+      lastInParent[ original.parentTask ] = original
 
-      tasksToSave.add( original )
       prevTask = original
       prevLevel = original.level()
+
+      tasksToSave.append( original )
 
    def isProject():
       if line is None:

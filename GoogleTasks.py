@@ -91,17 +91,18 @@ class GoogleTasks:
                taskById[ task.apiId ] = task
             previousByParentId = {}
             for task in sorted( self._tasks, key=Task.Task.positionKey ):
-               parentId = task.apiObject.get( 'parent' )
-               if parentId is not None:
-                  task.parentTask = taskById[ parentId ]
+               parentId = task.apiObject.get( 'parent', task.project.apiId  )
+               task.parentTask = taskById.get( parentId )
                predecessorId = previousByParentId.get( parentId )
-               if predecessorId is not None:
-                  task.predecessorId = predecessorId
-                  task.previousTask = taskById[ predecessorId ]
-               else:
-                  task.predecessorId = None
+               previousTask = taskById.get( predecessorId )
+               if previousTask is None:
                   task.previousTask = None
-               previousByParentId[ parentId ] = task.apiId
+                  task.predecessorId = None
+               else:
+                  task.previousTask = previousTask
+                  task.predecessorId = predecessorId
+               if not task.complete:
+                  previousByParentId[ parentId ] = task.apiId
          return super().get_tasks()
 
       tasks = property( get_tasks )
@@ -125,6 +126,9 @@ class GoogleTasks:
             self.dueDate, self.dueTime = GoogleTasks.fromApiTime(
                   apiObject[ 'due' ] )
          self.notes = apiObject.get( 'notes' )
+         # These get set up when read in bulk
+         self.predecessorId = None
+         self.previousTask = None
 
       def apiOrderKey( self ):
          return int( self.apiObject.get( 'position', '0' ) )

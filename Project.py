@@ -207,11 +207,15 @@ def read( taskApi, options, infile=None ):
          levelBefore = original.level()
          original.parentTask = parent
          levelAfter = original.level()
-         posInParentKey = parent
+         if levelAfter == 0:
+            posInParentKey = original.project
+         else:
+            posInParentKey = parent
 
-      predecessor = lastInParent.get( original.parentTask, None )
+      predecessor = lastInParent.get( posInParentKey, None )
+      predecessorId = predecessor.apiId if predecessor is not None else None
       original.previousTask = predecessor
-      lastInParent[ original.parentTask ] = original
+      lastInParent[ posInParentKey ] = original
 
       prevTask = original
       prevLevel = original.level()

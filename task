@@ -149,6 +149,7 @@ def main( argv ):
    wordMatchersComplete = command == doTaskAdd
    criteria.debug = "debugMatching" in options
    notMatcher = None
+   projectSelected = False
 
    if len( argv ) == 1 and command == doTaskList:
       searches = loadSavedSearches( configDir + savedSearchFile )
@@ -159,7 +160,10 @@ def main( argv ):
    for arg in argv:
       if arg == '--':
          wordMatchersComplete = True
-      elif wordMatchersComplete:
+      elif wordMatchersComplete and (
+             command != doTaskAdd or
+             projectSelected or
+             not re.match( r"p(roject)?:", arg ) ) :
          words.append( arg )
       elif arg == 'or' or arg == 'OR':
          if isinstance( criteria.parent, Matcher.Or ):
@@ -181,6 +185,7 @@ def main( argv ):
             matcher = Task.DueMatcher( arg[ arg.index( ":" )+1 : ] )
          elif re.match( r"p(roject)?:", arg ):
             matcher = Project.WordMatcher( arg[ arg.index( ":" )+1 : ] )
+            projectSelected = True
          elif "project" in options:
             matcher = Project.WordMatcher( arg )
          else:

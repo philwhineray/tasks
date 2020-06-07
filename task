@@ -52,6 +52,8 @@ optionMap = {
       "-h": "help",
       }
 
+savedSearchFile = "/saved-searches"
+
 def main( argv ):
    # Cleanup up automatically on Ctrl-C
    tempdir = tempfile.TemporaryDirectory( prefix = "task-" )
@@ -123,12 +125,36 @@ def main( argv ):
 
    if not argv:
       print( help )
+      printSavedSearches( options, configDir + savedSearchFile )
       return 0
 
-   command = argv.pop( 0 )
-   wordMatchersComplete = command == "add"
+   commandName = argv.pop( 0 )
+   if "project" in options and not re.match( "project-", commandName ):
+      commandName = "project-" + commandName
+   command = commandMap.get( commandName )
+
+   if command is None:
+      print( help )
+      printSavedSearches( options, configDir + savedSearchFile )
+      if command:
+         print( "error: no such command: %s" % command, file=sys.stderr )
+      return 1
+
+   if "help" in options:
+      # TODO - per-command help
+      print( help )
+      printSavedSearches( options, configDir + savedSearchFile )
+      return 0
+
+   wordMatchersComplete = command == doTaskAdd
    criteria.debug = "debugMatching" in options
    notMatcher = None
+
+   if len( argv ) == 1 and command == doTaskList:
+      searches = loadSavedSearches( configDir + savedSearchFile )
+      savedArgv = searches.get( argv[ 0 ] )
+      if savedArgv:
+         argv = savedArgv
 
    for arg in argv:
       if arg == '--':
@@ -169,24 +195,10 @@ def main( argv ):
    while criteria.parent:
       criteria = criteria.parent
 
-   if "project" in options and not re.match( "project-", command ):
-      command = "project-" + command
-
-   if command not in commandMap:
-      print( help )
-      if command:
-         print( "error: no such command: %s" % command, file=sys.stderr )
-      return 1
-
-   if "help" in options:
-      # TODO - per-command help
-      print( help )
-      return 0
-
    taskApi = GoogleTasks( configDir, cacheDir )
    taskApi.authenticate()
 
-   commandMap[ command ]( taskApi, options, criteria, words, args )
+   command( taskApi, options, criteria, words, args )
 
 def getMatchingProjects( taskApi, options, criteria ):
    if criteria.hasInstanceOf( Task.TaskMatcher ):
@@ -346,6 +358,38 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
    projects = getMatchingProjects( taskApi, options, criteria )
    for project in projects:
       delProject( project, "force" in options )
+
+def printSavedSearches( options, savedSearchFilename ):
+   print( "Saved searches (from %s):" % savedSearchFilename )
+   searches = loadSavedSearches( savedSearchFilename )
+   for key, args in searches.items():
+      if "verbose" in options:
+         print( "    %s: %s" % ( key, ' '.join( args ) ) )
+      else:
+         print( "    %s" % key )
+
+def loadSavedSearches( savedSearchFilename ):
+   defaultSavedSearches = [
+      "NEXT"
+      " @na NOT p:Admin OR @monitor NOT p:Admin OR due:today NOT p:Admin",
+      "ADMIN"
+      " @wait OR p:Admin @na OR p:Admin @monitor OR p:Admin due:today",
+   ]
+   if not os.path.exists( savedSearchFilename ):
+      with open( savedSearchFilename, 'w' ) as savedSearchFile:
+         print( "# Saved searches format", file=savedSearchFile )
+         print( "# NAME terms...", file=savedSearchFile )
+         for search in defaultSavedSearches:
+            print( search, file=savedSearchFile )
+   searches = {}
+   with open( savedSearchFilename, 'r' ) as savedSearchFile:
+      for line in savedSearchFile:
+         if re.match( "^\s*#", line ):
+            continue
+         terms = re.split( "\s+", line.strip() )
+         name = terms.pop( 0 )
+         searches[ name ] = terms
+   return searches
 
 if __name__ == '__main__':
    program = sys.argv.pop( 0 )

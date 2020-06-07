@@ -128,10 +128,13 @@ def main( argv ):
    command = argv.pop( 0 )
    wordMatchersComplete = command == "add"
    criteria.debug = "debugMatching" in options
+   notMatcher = None
 
    for arg in argv:
       if arg == '--':
          wordMatchersComplete = True
+      elif wordMatchersComplete:
+         words.append( arg )
       elif arg == 'or' or arg == 'OR':
          if isinstance( criteria.parent, Matcher.Or ):
             orCriteria = criteria.parent
@@ -141,16 +144,27 @@ def main( argv ):
             orCriteria.add( criteria )
          criteria = Matcher.And()
          orCriteria.add(criteria )
-      elif re.match( r"d(ue)?:", arg ):
-         criteria.add( Task.DueMatcher( arg[ arg.index( ":" )+1 : ] ) )
-      elif re.match( r"p(roject)?:", arg ):
-         criteria.add( Project.WordMatcher( arg[ arg.index( ":" )+1 : ] ) )
-      elif wordMatchersComplete:
-         words.append( arg )
-      elif "project" in options:
-         criteria.add( Project.WordMatcher( arg ) )
+      elif arg == 'not' or arg == 'NOT':
+         if notMatcher:
+            notMatcher = None
+         else:
+            notMatcher = Matcher.Not()
+            notMatcher.debug = "debugMatching" in options
       else:
-         criteria.add( Task.WordMatcher( arg ) )
+         if re.match( r"d(ue)?:", arg ):
+            matcher = Task.DueMatcher( arg[ arg.index( ":" )+1 : ] )
+         elif re.match( r"p(roject)?:", arg ):
+            matcher = Project.WordMatcher( arg[ arg.index( ":" )+1 : ] )
+         elif "project" in options:
+            matcher = Project.WordMatcher( arg )
+         else:
+            matcher = Task.WordMatcher( arg )
+
+         if notMatcher:
+            notMatcher.add( matcher )
+            matcher = notMatcher
+            notMatcher = None
+         criteria.add( matcher )
 
    while criteria.parent:
       criteria = criteria.parent

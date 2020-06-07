@@ -54,3 +54,16 @@ class Or( Group ):
       if self.debug:
          print( "Or", "no match", file=sys.stderr )
       return False
+
+class Not( Group ):
+   def match( self, projectOrTask ):
+      if self.debug:
+         print( "Not", "match?", file=sys.stderr )
+      for matcher in self.matchers:
+         if matcher.match( projectOrTask ):
+            if self.debug:
+               print( "Not", "no match", file=sys.stderr )
+            return False
+      if self.debug:
+         print( "Not", "match", file=sys.stderr )
+      return True

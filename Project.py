@@ -160,6 +160,7 @@ def read( taskApi, options, infile=None ):
       task, isDeleted, level = Task.Task.parse( currentProject, line )
       if task is None:
          return
+      errorLineNo = lineNo
       readLine()
       while ( line is not None and
               not isTask() and
@@ -177,7 +178,7 @@ def read( taskApi, options, infile=None ):
          original = project.newTask()
 
       if original in used:
-         raise ParseError( "Line %d - duplicate id: %s" % ( lineNo, original.shortId ) )
+         raise ParseError( "Line %d - duplicate id: %s" % ( errorLineNo, original.shortId ) )
       used.add( original )
 
       if isDeleted:

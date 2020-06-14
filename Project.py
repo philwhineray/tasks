@@ -43,7 +43,7 @@ class Project:
       for task in self.tasks:
          if "debugMatching" in options:
             print( "", file=sys.stderr )
-            print( "Matching...", task, file=sys.stderr )
+            print( "Matching...", task.shortId, task, file=sys.stderr )
          if "all" not in options and task.complete:
             if "debugMatching" in options:
                print( "Rejected: Completed and not 'all'", file=sys.stderr )

@@ -164,7 +164,7 @@ class WordMatcher( TaskMatcher ):
          if result:
             print( "Task.Word", "match", file=sys.stderr )
          else:
-            print( "Task.Word", "no match" )
+            print( "Task.Word", "no match", file=sys.stderr )
       return result
 
 class DueMatcher( TaskMatcher ):

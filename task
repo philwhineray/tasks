@@ -53,6 +53,7 @@ optionMap = {
       }
 
 savedSearchFile = "/saved-searches"
+defaultAddProjectFile = "/default-add-project"
 
 def main( argv ):
    # Cleanup up automatically on Ctrl-C
@@ -125,6 +126,7 @@ def main( argv ):
 
    if not argv:
       print( help )
+      printDefaultAddProject( options, configDir + defaultAddProjectFile )
       printSavedSearches( options, configDir + savedSearchFile )
       return 0
 
@@ -135,6 +137,7 @@ def main( argv ):
 
    if command is None:
       print( help )
+      printDefaultAddProject( options, configDir + defaultAddProjectFile )
       printSavedSearches( options, configDir + savedSearchFile )
       if command:
          print( "error: no such command: %s" % command, file=sys.stderr )
@@ -143,6 +146,7 @@ def main( argv ):
    if "help" in options:
       # TODO - per-command help
       print( help )
+      printDefaultAddProject( options, configDir + defaultAddProjectFile )
       printSavedSearches( options, configDir + savedSearchFile )
       return 0
 
@@ -188,6 +192,7 @@ def main( argv ):
             projectSelected = True
          elif "project" in options:
             matcher = Project.WordMatcher( arg )
+            projectSelected = True
          else:
             matcher = Task.WordMatcher( arg )
 
@@ -195,6 +200,13 @@ def main( argv ):
             notMatcher.add( matcher )
             matcher = notMatcher
             notMatcher = None
+         criteria.add( matcher )
+
+   if command == doTaskAdd and not projectSelected:
+      project = loadDefaultAddProject( configDir + defaultAddProjectFile )
+      if project is not None:
+         matcher = Project.WordMatcher( project )
+         projectSelected = True
          criteria.add( matcher )
 
    while criteria.parent:
@@ -395,6 +407,24 @@ def loadSavedSearches( savedSearchFilename ):
          name = terms.pop( 0 )
          searches[ name ] = terms
    return searches
+
+def printDefaultAddProject( options, defaultAddProjectFilename ):
+   project = loadDefaultAddProject( defaultAddProjectFilename )
+   if project is None:
+      project = "<None>"
+   print( "Default project to add to (from %s):\n    %s" % (
+      defaultAddProjectFilename, project ) )
+
+def loadDefaultAddProject( defaultAddProjectFilename ):
+   if not os.path.exists( defaultAddProjectFilename ):
+      with open( defaultAddProjectFilename, 'w' ) as defaultAddProjectFile:
+         print( "Inbox", file=defaultAddProjectFile )
+   with open( defaultAddProjectFilename, 'r' ) as defaultAddProjectFile:
+      for line in defaultAddProjectFile:
+         if re.match( "^\s*#", line ):
+            continue
+         return line.strip()
+   return None
 
 if __name__ == '__main__':
    program = sys.argv.pop( 0 )

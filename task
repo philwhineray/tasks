@@ -112,7 +112,7 @@ def main( argv ):
          argv.append( arg )
          continue
 
-      if re.match( r"-", arg ):
+      if re.match( r"-.", arg ):
          if arg == "--":
             wordMatchersComplete = True
             argv.append( arg )

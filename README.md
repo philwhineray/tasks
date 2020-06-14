@@ -33,44 +33,48 @@ button, then set up:
 
 Choose to edit the newly created token and download the JSON as
 `$HOME/.config/tasks/app-credentials.json`.
+User-defined commands
+=====================
 
-Saved Searches
-==============
+Any number of user-defined commands can be set up. If the command
+is run with one of these names as the very first argument, it will be
+expanded before and any other arguments supplied are appended.
 
-Any number of searches can be defined for use with `ls`.
+You can use any command for a user-defined command, although at present
+the functionality is quite basic and the most obvious use is for saved
+searches.
 
-The program automatically creates `$HOME/.config/tasks/saved-searches` with
-some defaults if it does not exist:
+The program automatically creates `$HOME/.config/tasks/user-defined-commands`
+with some defaults if it does not exist:
 
 ```
-NEXT @na NOT p:Admin OR @monitor NOT p:Admin OR due:today NOT p:Admin
-ADMIN @wait OR p:Admin @na OR p:Admin @monitor OR p:Admin due:today
+NEXT ls @na NOT p:Admin OR @monitor NOT p:Admin OR due:today NOT p:Admin
+ADMIN ls @wait OR p:Admin @na OR p:Admin @monitor OR p:Admin due:today
 ```
 
 These work well in a work setting, where you only want to do admin and follow
 up tasks once a day.
 
-Run `task ls NEXT` for any non-admin next action (@na),
-closely monitored (@monitor), and due today tasks. The @tags are just included
-in the task name.
+Run `task NEXT` to list any non-admin next action (@na),
+closely monitored (@monitor), and due today tasks.
+The @tags are just included in the task name.
 
-Run `task ls ADMIN` for tasks in the `Admin` list (which you must create
+Run `task ADMIN` to list tasks in the `Admin` project (which you must create
 manually) which are @na, @monitor, or due today, or which, regardless
-of list, are waiting on someone or something (@wait) and so might need
+of project, are waiting on someone or something (@wait) and so might need
 following up.
 
 The distinction between admin and other tasks does not serve me well at home,
 so I use the following:
 
 ```
-NEXT @na OR due:today
-ADMIN @wait OR @monitor
+NEXT ls @na OR due:today
+ADMIN ls @wait OR @monitor
 ```
 
-Thus the `ADMIN` search is all about follow-up and the `NEXT` search is everything
-else. I could define different search names, but I find it easier to remember
-by redefining their meaning.
-
+Thus the `task ADMIN` is all about follow-up and `task NEXT` is everything
+else. I could define different commands, but I find they have a similar
+meaning, just my approach to them makes a different search preferable.
 
 Limitations
 ===========

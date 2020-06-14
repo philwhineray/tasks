@@ -52,7 +52,7 @@ optionMap = {
       "-h": "help",
       }
 
-savedSearchFile = "/saved-searches"
+userDefinedCommandsFile = "/user-defined-commands"
 defaultAddProjectFile = "/default-add-project"
 
 def main( argv ):
@@ -106,6 +106,14 @@ def main( argv ):
       for alias in aliasList:
          commandMap[ alias ] = commandMap[ commandToAlias ]
 
+   if sys.argv:
+      commands = loadUserDefinedCommands( configDir + userDefinedCommandsFile )
+      command = commands.get( sys.argv[ 0 ] )
+      if command:
+         sys.argv.pop( 0 )
+         command.extend( sys.argv )
+         sys.argv = command
+
    argv = []
    wordMatchersComplete = False
    for arg in sys.argv:
@@ -127,7 +135,7 @@ def main( argv ):
    if not argv:
       print( help )
       printDefaultAddProject( options, configDir + defaultAddProjectFile )
-      printSavedSearches( options, configDir + savedSearchFile )
+      printUserDefinedCommands( options, configDir + userDefinedCommandsFile )
       return 0
 
    commandName = argv.pop( 0 )
@@ -138,7 +146,7 @@ def main( argv ):
    if command is None:
       print( help )
       printDefaultAddProject( options, configDir + defaultAddProjectFile )
-      printSavedSearches( options, configDir + savedSearchFile )
+      printUserDefinedCommands( options, configDir + userDefinedCommandsFile )
       if command:
          print( "error: no such command: %s" % command, file=sys.stderr )
       return 1
@@ -147,19 +155,13 @@ def main( argv ):
       # TODO - per-command help
       print( help )
       printDefaultAddProject( options, configDir + defaultAddProjectFile )
-      printSavedSearches( options, configDir + savedSearchFile )
+      printUserDefinedCommands( options, configDir + userDefinedCommandsFile )
       return 0
 
    wordMatchersComplete = command == doTaskAdd
    criteria.debug = "debugMatching" in options
    notMatcher = None
    projectSelected = False
-
-   if len( argv ) == 1 and command == doTaskList:
-      searches = loadSavedSearches( configDir + savedSearchFile )
-      savedArgv = searches.get( argv[ 0 ] )
-      if savedArgv:
-         argv = savedArgv
 
    for arg in argv:
       if arg == '--':
@@ -376,37 +378,34 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
    for project in projects:
       delProject( project, "force" in options )
 
-def printSavedSearches( options, savedSearchFilename ):
-   print( "Saved searches (from %s):" % savedSearchFilename )
-   searches = loadSavedSearches( savedSearchFilename )
-   for key, args in searches.items():
-      if "verbose" in options:
-         print( "    %s: %s" % ( key, ' '.join( args ) ) )
-      else:
-         print( "    %s" % key )
+def printUserDefinedCommands( options, userDefinedCommandsFilename ):
+   print( "User defined commands (from %s):" % userDefinedCommandsFilename )
+   commands = loadUserDefinedCommands( userDefinedCommandsFilename )
+   for key, args in commands.items():
+      print( "    %s: %s" % ( key, ' '.join( args ) ) )
 
-def loadSavedSearches( savedSearchFilename ):
-   defaultSavedSearches = [
+def loadUserDefinedCommands( userDefinedCommandsFilename ):
+   defaultUserDefinedCommands = [
       "NEXT"
-      " @na NOT p:Admin OR @monitor NOT p:Admin OR due:today NOT p:Admin",
+      " ls @na NOT p:Admin OR @monitor NOT p:Admin OR due:today NOT p:Admin",
       "ADMIN"
-      " @wait OR p:Admin @na OR p:Admin @monitor OR p:Admin due:today",
+      " ls @wait OR p:Admin @na OR p:Admin @monitor OR p:Admin due:today",
    ]
-   if not os.path.exists( savedSearchFilename ):
-      with open( savedSearchFilename, 'w' ) as savedSearchFile:
-         print( "# Saved searches format", file=savedSearchFile )
-         print( "# NAME terms...", file=savedSearchFile )
-         for search in defaultSavedSearches:
-            print( search, file=savedSearchFile )
-   searches = {}
-   with open( savedSearchFilename, 'r' ) as savedSearchFile:
-      for line in savedSearchFile:
+   if not os.path.exists( userDefinedCommandsFilename ):
+      with open( userDefinedCommandsFilename, 'w' ) as userDefinedCommandsFile:
+         print( "# User defined commands format", file=userDefinedCommandsFile )
+         print( "# NAME command terms...", file=userDefinedCommandsFile )
+         for search in defaultUserDefinedCommands:
+            print( search, file=userDefinedCommandsFile )
+   commands = {}
+   with open( userDefinedCommandsFilename, 'r' ) as userDefinedCommandsFile:
+      for line in userDefinedCommandsFile:
          if re.match( "^\s*#", line ):
             continue
          terms = re.split( "\s+", line.strip() )
          name = terms.pop( 0 )
-         searches[ name ] = terms
-   return searches
+         commands[ name ] = terms
+   return commands
 
 def printDefaultAddProject( options, defaultAddProjectFilename ):
    project = loadDefaultAddProject( defaultAddProjectFilename )

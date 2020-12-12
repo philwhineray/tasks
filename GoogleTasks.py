@@ -165,21 +165,22 @@ class GoogleTasks:
             oldId = self.apiId
             oldProjectId = self.projectId
             self.projectId = self.project.apiId
-            self.apiObject = self.taskApi.tasks().insert(
+            self.apiObject = self.executeWithRetry(
+                                self.taskApi.tasks().insert,
                                 tasklist=self.projectId,
-                                body=self.apiObject ).execute()
+                                body=self.apiObject )
             self.apiId = self.apiObject[ 'id' ]
             self.taskApi.invalidateProjectCache( self.projectId )
             if oldId is not None:
-               self.taskApi.tasks().delete(
+               self.executeWithRetry( self.taskApi.tasks().delete,
                      tasklist=oldProjectId,
-                     task=oldId ).execute()
+                     task=oldId )
                self.taskApi.invalidateProjectCache( oldProjectId )
          elif updated:
-            self.taskApi.tasks().update(
+            self.executeWithRetry( self.taskApi.tasks().update,
                   tasklist=self.projectId,
                   task=self.apiId,
-                  body=self.apiObject ).execute()
+                  body=self.apiObject )
             self.taskApi.invalidateProjectCache( self.projectId )
 
          parentId = None if self.parentTask is None else self.parentTask.apiId
@@ -193,7 +194,8 @@ class GoogleTasks:
                moveParam[ 'parent' ] = parentId
             if predecessorId is not None:
                moveParam[ 'previous' ] = predecessorId
-            self.taskApi.tasks().move( **moveParam ).execute()
+            self.executeWithRetry( self.taskApi.tasks().move,
+                                   **moveParam )
             self.taskApi.invalidateProjectCache( self.projectId )
 
       def delete( self ):
@@ -204,10 +206,11 @@ class GoogleTasks:
 
       def executeWithRetry( self, fn, **params ):
          retry = 10
+         result = None
          while retry:
             retry -= 1
             try:
-               fn( **params ).execute()
+               result = fn( **params ).execute()
                lastException = None
             except Exception as e:
                lastException = e
@@ -215,6 +218,7 @@ class GoogleTasks:
                break
          if lastException is not None:
             raise lastException
+         return result
 
 
    def __init__( self, configDir, cacheDir ):

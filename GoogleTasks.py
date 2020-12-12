@@ -197,10 +197,25 @@ class GoogleTasks:
             self.taskApi.invalidateProjectCache( self.projectId )
 
       def delete( self ):
-         self.taskApi.tasks().delete(
+         self.executeWithRetry( self.taskApi.tasks().delete,
                tasklist=self.projectId,
-               task=self.apiId ).execute()
+               task=self.apiId )
          self.taskApi.invalidateProjectCache( self.projectId )
+
+      def executeWithRetry( self, fn, **params ):
+         retry = 10
+         while retry:
+            retry -= 1
+            try:
+               fn( **params ).execute()
+               lastException = None
+            except Exception as e:
+               lastException = e
+            else:
+               break
+         if lastException is not None:
+            raise lastException
+
 
    def __init__( self, configDir, cacheDir ):
       self.creds = None

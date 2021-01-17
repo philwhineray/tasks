@@ -54,6 +54,9 @@ optionMap = {
 
 userDefinedCommandsFile = "/user-defined-commands"
 defaultAddProjectFile = "/default-add-project"
+bulkEditFileExtensionFile = "/bulk-edit-extenstion"
+
+globalConfig = {}
 
 def main( argv ):
    # Cleanup up automatically on Ctrl-C
@@ -70,6 +73,9 @@ def main( argv ):
    if not os.path.exists( appCredentialsFile ):
       raise RuntimeError( "no credentials file - see README.md#app-authentication",
                           appCredentialsFile )
+
+   globalConfig[ "fileExtension" ] = loadBulkEditFileExtension(
+         configDir + bulkEditFileExtensionFile )
 
    options = {}
    words = []
@@ -309,7 +315,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
 
    projects = taskApi.getProjects()
 
-   taskFilePath = args[ 'tempdir' ] + '/tasks.org'
+   taskFilePath = args[ 'tempdir' ] + '/tasks.' + globalConfig[ "fileExtension" ]
    taskFile = open( taskFilePath, 'w')
    with open( taskFilePath, 'w' ) as taskFile:
       print( helptext, file=taskFile )
@@ -420,6 +426,17 @@ def loadDefaultAddProject( defaultAddProjectFilename ):
          print( "Inbox", file=defaultAddProjectFile )
    with open( defaultAddProjectFilename, 'r' ) as defaultAddProjectFile:
       for line in defaultAddProjectFile:
+         if re.match( "^\s*#", line ):
+            continue
+         return line.strip()
+   return None
+
+def loadBulkEditFileExtension( bulkEditFileExtensionFilename ):
+   if not os.path.exists( bulkEditFileExtensionFilename ):
+      with open( bulkEditFileExtensionFilename, 'w' ) as bulkEditFileExtensionFile:
+         print( "txt", file=bulkEditFileExtensionFile )
+   with open( bulkEditFileExtensionFilename, 'r' ) as bulkEditFileExtensionFile:
+      for line in bulkEditFileExtensionFile:
          if re.match( "^\s*#", line ):
             continue
          return line.strip()

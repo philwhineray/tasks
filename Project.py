@@ -58,7 +58,14 @@ class Project:
       return match
 
    def sort( projects ):
-      return sorted( projects, key=lambda p: p.title if p.title != "Inbox" else "" )
+      def titleSorter( name ):
+         if name == "Inbox":
+            return "01-" + name
+         elif name == "Scheduled":
+            return "00-" + name
+         else:
+            return "99-" + name
+      return sorted( projects, key=lambda p: titleSorter( p.title ) )
 
    def parse( line ):
       match = re.match( r"^[*] \((p[0-9a-f]*)\) (.*)", line )

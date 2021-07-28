@@ -7,6 +7,7 @@ from google.auth.exceptions import RefreshError
 import os.path
 import pickle
 import sys
+import time
 
 # API docs:
 #   https://developers.google.com/api-client-library/python/
@@ -205,15 +206,17 @@ class GoogleTasks:
          self.taskApi.invalidateProjectCache( self.projectId )
 
       def executeWithRetry( self, fn, **params ):
-         retry = 10
+         maxRetry = 10
+         retriesRemaining = maxRetry
          result = None
-         while retry:
-            retry -= 1
+         while retriesRemaining:
+            retriesRemaining -= 1
             try:
                result = fn( **params ).execute()
                lastException = None
             except Exception as e:
                lastException = e
+               time.sleep( maxRetry - retriesRemaining )
             else:
                break
          if lastException is not None:

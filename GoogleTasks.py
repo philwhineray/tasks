@@ -230,11 +230,16 @@ class GoogleTasks:
       self.configDir = configDir
       self.cacheDir = cacheDir
 
-   def authenticate( self ):
+   def authenticate( self, alternateCredentials=None ):
       self.creds = None
 
-      appCredentialsFile = self.configDir + self.appCredentialsFileName
-      userCredentialsFile = self.configDir + self.userCredentialsFileName
+      if alternateCredentials:
+         suffix = "." + alternateCredentials
+      else:
+         suffix = ""
+
+      appCredentialsFile = self.configDir + self.appCredentialsFileName + suffix
+      userCredentialsFile = self.configDir + self.userCredentialsFileName + suffix
 
       if not os.path.exists( appCredentialsFile ):
          raise RuntimeError( "no credentials file", appCredentialsFile )

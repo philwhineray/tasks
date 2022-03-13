@@ -33,6 +33,7 @@ button, then set up:
 
 Choose to edit the newly created token and download the JSON as
 `$HOME/.config/tasks/app-credentials.json`.
+
 User-defined commands
 =====================
 

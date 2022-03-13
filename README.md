@@ -34,6 +34,15 @@ button, then set up:
 Choose to edit the newly created token and download the JSON as
 `$HOME/.config/tasks/app-credentials.json`.
 
+Once this file is installed, just use the task command and you
+will be prompted to visit a URL to provide access to your Google
+tasks.
+
+To set up a second account, which can be used by specifying an explicit
+account e.g. `-A MyOtherAcct`, either copy the existing app-credentials
+or create a new one with, depending on how much separation you desire,
+and install as: `$HOME/.config/tasks/app-credentials.json.MyOtherAcct`.
+
 User-defined commands
 =====================
 

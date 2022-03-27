@@ -308,7 +308,7 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
 #  * (pXX) -
 #  ** (tXXX) [-] ...
 #'''
-   allowed =( "verbose", )
+   allowed =( "verbose", "account", )
    for key in options.keys():
       if key in ( "all", ):
          raise RuntimeError( "bulk: 'all' option would be too dangerous" )

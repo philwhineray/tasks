@@ -3,6 +3,7 @@
 import os
 import re
 import subprocess
+import shutil
 import sys
 import tempfile
 
@@ -340,6 +341,11 @@ def doTasksBulk( taskApi, options, criteria, words, args ):
       except Project.ParseError as ex:
          print( ex )
          input( "Press Enter to fix / Ctrl-C to abandon..." )
+      except:
+         shutil.copy( taskFilePath, "tasks.saved" )
+         print( "Saved to tasks.saved" )
+         raise
+
 
 def doTaskDone( taskApi, options, criteria, words, args ):
    task = getMatchingTask( taskApi, options, criteria )

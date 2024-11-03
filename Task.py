@@ -192,7 +192,7 @@ class DueMatcher( TaskMatcher ):
       if dueDate == "today" or dueDate == "now":
          now = datetime.now()
          dueDate = now.strftime( "%Y-%m-%d" )
-      elif not re.match( "[0-9]{4}-[0-9]{2}-[0-9]{2}$", dueDate ):
+      elif not re.match( r"[0-9]{4}-[0-9]{2}-[0-9]{2}$", dueDate ):
          raise RuntimeError( "due format must be due:[+-=]yyyy-mm-dd" )
 
       self.due = dueDate

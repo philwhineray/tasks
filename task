@@ -154,7 +154,7 @@ def main( argv ):
       return 0
 
    commandName = argv.pop( 0 )
-   if "project" in options and not re.match( "project-", commandName ):
+   if "project" in options and not re.match( r"project-", commandName ):
       commandName = "project-" + commandName
    command = commandMap.get( commandName )
 
@@ -420,9 +420,9 @@ def loadUserDefinedCommands( userDefinedCommandsFilename ):
    commands = {}
    with open( userDefinedCommandsFilename, 'r' ) as userDefinedCommandsFile:
       for line in userDefinedCommandsFile:
-         if re.match( "^\s*#", line ):
+         if re.match( r"^\s*#", line ):
             continue
-         terms = re.split( "\s+", line.strip() )
+         terms = re.split( r"\s+", line.strip() )
          name = terms.pop( 0 )
          commands[ name ] = terms
    return commands
@@ -440,7 +440,7 @@ def loadDefaultAddProject( defaultAddProjectFilename ):
          print( "Inbox", file=defaultAddProjectFile )
    with open( defaultAddProjectFilename, 'r' ) as defaultAddProjectFile:
       for line in defaultAddProjectFile:
-         if re.match( "^\s*#", line ):
+         if re.match( r"^\s*#", line ):
             continue
          return line.strip()
    return None
@@ -451,7 +451,7 @@ def loadBulkEditFileExtension( bulkEditFileExtensionFilename ):
          print( "txt", file=bulkEditFileExtensionFile )
    with open( bulkEditFileExtensionFilename, 'r' ) as bulkEditFileExtensionFile:
       for line in bulkEditFileExtensionFile:
-         if re.match( "^\s*#", line ):
+         if re.match( r"^\s*#", line ):
             continue
          return line.strip()
    return None

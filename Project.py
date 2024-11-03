@@ -149,7 +149,7 @@ def read( taskApi, options, infile=None ):
    def isComment():
       if line is None:
          return False
-      return re.match( "^\s*$", line ) or re.match( "^#", line )
+      return re.match( r"^\s*$", line ) or re.match( r"^#", line )
 
    def parseComment():
       while isComment():

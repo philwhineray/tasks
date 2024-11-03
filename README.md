@@ -6,11 +6,12 @@ Cli to interact with google tasks
 Pre-requisites
 ==============
 
-Python 3 Pip
+~~~
+sudo apt install python3-googleapi python3-google-auth-oauthlib
+~~~
 
-~~~
-sudo apt install python3-pip
-~~~
+
+Or:
 
 ~~~
 python3 -m pip install --user google-api-python-client

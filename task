@@ -273,8 +273,6 @@ def getMatchingTask( taskApi, options, criteria ):
 def doTaskAdd( taskApi, options, criteria, words, args ):
    if criteria.hasInstanceOf( Task.TaskMatcher ):
       raise RuntimeError( "Cannot use task criteria with this action" )
-   if not criteria.hasInstanceOf( Project.ProjectMatcher ):
-      projectCriteria = [ Project.WordMatcher( "inbox" ) ]
    project = getMatchingProject( taskApi, options, criteria )
    task = project.newTask()
    task.title = " ".join( words )

@@ -8,10 +8,11 @@ import sys
 import Matcher
 
 class Task():
-   def __init__( self, project ):
+   def __init__( self, project, addToProject=True ):
       self.shortId = None
       self._project = project
-      self._project.addTask( self )
+      if addToProject and self._project:
+         self._project.addTask( self )
       self._parentTask = None
       self.childTasks = set()
       self.previousTask = None
@@ -32,6 +33,13 @@ class Task():
 
    project = property( get_project, set_project )
 
+   def get_accountName( self ):
+      if self._project:
+         return getattr( self._project, "accountName", None )
+      return None
+
+   accountName = property( get_accountName )
+
    def get_parentTask( self ):
       return self._parentTask
 
@@ -51,7 +59,7 @@ class Task():
       raise NotImplementedError( "must subclass Task.Task" )
 
    def apiOrderKey( self ):
-      raise NotImplementedError( "must subclass Task.Task" )
+      return 0
 
    def hasAncestor( self, possibleAncestor ):
       parent = self.parentTask
@@ -90,7 +98,9 @@ class Task():
          parent = parent.parentTask
       return depth + " (" + self.shortId + ") " + completeMark + " " + str( self )
 
-   def print( self, options=None, outfile=sys.stdout ):
+   def print( self, options=None, outfile=None ):
+      if outfile is None:
+         outfile = sys.stdout
       print( self.lineString(), file=outfile )
       if options and "verbose" in options and self.notes is not None:
          print( self.notes, file=outfile )
@@ -101,7 +111,7 @@ class Task():
       if match:
          if not project:
             return True
-         task = Task( project )
+         task = Task( project, addToProject=False )
          task.shortId = match[ 2 ]
          task.complete = match[ 3 ].upper() == 'X'
          task.dueDate = match[ 5 ]

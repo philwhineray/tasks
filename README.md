@@ -39,10 +39,21 @@ Once this file is installed, just use the task command and you
 will be prompted to visit a URL to provide access to your Google
 tasks.
 
-To set up a second account, which can be used by specifying an explicit
-account e.g. `-A MyOtherAcct`, either copy the existing app-credentials
-or create a new one with, depending on how much separation you desire,
-and install as: `$HOME/.config/tasks/app-credentials.json.MyOtherAcct`.
+Multi-account management
+========================
+
+To set up additional accounts, install credentials for each account as:
+`$HOME/.config/tasks/app-credentials.json.<AccountName>` (with `$HOME/.config/tasks/app-credentials.json` being the `"default"` account).
+
+By default, `task` connects to all configured accounts simultaneously:
+* Projects are prefixed with `<account>:<project>` (e.g. `work:Inbox`, `personal:Inbox`).
+* Short IDs (`pXX`, `tXXX`) are globally unique across all accounts.
+* Use `a:<account>` or `account:<account>` to filter by account.
+* Use `p:<account>:<project>` to scope queries to a specific account's project.
+* Commands like `task add "Buy milk"` add to the designated inbox in the default account (or disambiguate using default account if multiple accounts have an `Inbox`).
+* In `task bulk`, tasks can be moved across accounts by simply editing the project header under which they appear.
+* Use `-A <AccountName>` to restrict an invocation strictly to a single account.
+* Create `$HOME/.config/tasks/default-account` containing the name of your primary account to designate a specific default account name other than `"default"`.
 
 User-defined commands
 =====================

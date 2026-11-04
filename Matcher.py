@@ -67,3 +67,27 @@ class Not( Group ):
       if self.debug:
          print( "Not", "match", file=sys.stderr )
       return True
+
+class AccountMatcher( Matcher ):
+   def __init__( self, accountName ):
+      super().__init__()
+      self.accountName = accountName
+
+   def match( self, projectOrTask ):
+      if self.debug:
+         print( "Account", "match?", self.accountName, file=sys.stderr )
+      itemAccount = getattr( projectOrTask, "accountName", None )
+      if itemAccount is None and hasattr( projectOrTask, "project" ):
+         itemAccount = getattr( projectOrTask.project, "accountName", None )
+      if itemAccount is None:
+         if self.debug:
+            print( "Account", "no match (no account)", file=sys.stderr )
+         return False
+      result = itemAccount.lower() == self.accountName.lower()
+      if self.debug:
+         if result:
+            print( "Account", "match", file=sys.stderr )
+         else:
+            print( "Account", "no match", file=sys.stderr )
+      return result
+

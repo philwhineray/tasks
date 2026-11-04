@@ -7,7 +7,7 @@ import shutil
 import sys
 import tempfile
 
-from GoogleTasks import GoogleTasks
+from GoogleTasks import GoogleTasks, MultiAccountManager
 import Matcher
 import Project
 import Task
@@ -40,7 +40,8 @@ WORD:
     WORD:    regexp
     @TAG:    a tag
     due:TIME        - A due date (also d:TIME)
-    project:PROJECT - Work on PROJECT (also p:PROJECT)
+    project:PROJECT - Work on PROJECT (also p:PROJECT or p:ACCOUNT:PROJECT)
+    account:ACCOUNT - Work on ACCOUNT (also a:ACCOUNT)
 """
 
 optionMap = {
@@ -71,15 +72,11 @@ def main( argv ):
 
    configDir = os.environ[ 'HOME' ] + '/.config/tasks'
    cacheDir = os.environ[ 'HOME' ] + '/.cache/tasks'
-   appCredentialsFile = configDir + GoogleTasks.appCredentialsFileName
 
    if not os.path.exists( configDir ):
       os.makedirs( configDir )
    if not os.path.exists( cacheDir ):
       os.makedirs( cacheDir )
-   if not os.path.exists( appCredentialsFile ):
-      raise RuntimeError( "no credentials file - see README.md#app-authentication",
-                          appCredentialsFile )
 
    globalConfig[ "fileExtension" ] = loadBulkEditFileExtension(
          configDir + bulkEditFileExtensionFile,
@@ -209,6 +206,8 @@ def main( argv ):
          elif re.match( r"p(roject)?:", arg ):
             matcher = Project.WordMatcher( arg[ arg.index( ":" )+1 : ] )
             projectSelected = True
+         elif re.match( r"a(ccount)?:", arg ):
+            matcher = Matcher.AccountMatcher( arg[ arg.index( ":" )+1 : ] )
          elif "project" in options:
             matcher = Project.WordMatcher( arg )
             projectSelected = True
@@ -231,10 +230,13 @@ def main( argv ):
    while criteria.parent:
       criteria = criteria.parent
 
-   taskApi = GoogleTasks( configDir, cacheDir )
-   taskApi.authenticate( alternateCredentials=options.get( "account" ) )
+   accountManager = MultiAccountManager( configDir, cacheDir, activeAccount=options.get( "account" ) )
 
-   command( taskApi, options, criteria, words, args )
+   try:
+      command( accountManager, options, criteria, words, args )
+   except Project.AmbiguousMatchError as ex:
+      print( ex, file=sys.stderr )
+      return 1
 
 def getMatchingProjects( taskApi, options, criteria ):
    if criteria.hasInstanceOf( Task.TaskMatcher ):
@@ -272,10 +274,40 @@ def getMatchingTask( taskApi, options, criteria ):
       raise RuntimeError( "Matched %d task(s)" % len( tasks ) )
    return tasks[ 0 ]
 
+def _extractSearchTerm( criteria ):
+   if isinstance( criteria, Project.WordMatcher ):
+      return criteria.word
+   for m in getattr( criteria, "matchers", [] ):
+      term = _extractSearchTerm( m )
+      if term:
+         return term
+   return None
+
+def checkProjectAmbiguity( matches, criteria ):
+   accounts = set( getattr( p, "accountName", "default" ) for p in matches )
+   if len( accounts ) > 1:
+      term = _extractSearchTerm( criteria ) or ( matches[ 0 ].title if matches else "project" )
+      lines = [ f"error: '{term}' matches projects across multiple accounts:" ]
+      for p in matches:
+         lines.append( f"  - {p.displayName} ({p.shortId})" )
+      lines.append( "Please qualify the project as '<account>:<project>' or specify by short ID (e.g. p01)." )
+      raise Project.AmbiguousMatchError( "\n".join( lines ) )
+
 def doTaskAdd( taskApi, options, criteria, words, args ):
    if criteria.hasInstanceOf( Task.TaskMatcher ):
       raise RuntimeError( "Cannot use task criteria with this action" )
-   project = getMatchingProject( taskApi, options, criteria )
+   matches = getMatchingProjects( taskApi, options, criteria )
+   if len( matches ) == 1:
+      project = matches[ 0 ]
+   elif len( matches ) > 1:
+      defaultAccount = getattr( taskApi, "defaultAccountName", "default" )
+      defaultMatches = [ p for p in matches if getattr( p, "accountName", defaultAccount ) == defaultAccount ]
+      if len( defaultMatches ) == 1:
+         project = defaultMatches[ 0 ]
+      else:
+         raise RuntimeError( "Matched %d project(s)" % len( matches ) )
+   else:
+      raise RuntimeError( "Matched 0 project(s)" )
    task = project.newTask()
    task.title = " ".join( words )
    task.save()
@@ -367,18 +399,36 @@ def doTaskDelete( taskApi, options, criteria, words, args ):
    task.delete()
 
 def doProjectAdd( taskApi, options, criteria, words, args ):
-   project = taskApi.newProject()
-   project.title = " ".join( words )
+   accountName = options.get( "account" )
+   title = " ".join( words )
+   if not accountName and ":" in title:
+      prefix, rest = title.split( ":", 1 )
+      if hasattr( taskApi, "accounts" ) and prefix in taskApi.accounts:
+         accountName = prefix
+         title = rest
+   if hasattr( taskApi, "newProject" ):
+      try:
+         project = taskApi.newProject( accountName=accountName )
+      except TypeError:
+         project = taskApi.newProject()
+   else:
+      project = taskApi.newProject()
+   project.title = title
    project.save()
 
 def doProjectList( taskApi, options, criteria, words, args ):
    outfile = sys.stdout
    projects = getMatchingProjects( taskApi, options, criteria )
-   for project in Project.Project.sort( projects ):
+   defaultAccount = getattr( taskApi, "defaultAccountName", "default" )
+   for project in Project.Project.sort( projects, defaultAccount=defaultAccount ):
       project.print( options=options, outfile=outfile )
 
 def doProjectRename( taskApi, options, criteria, words, args ):
-   project = getMatchingProject( taskApi, options, criteria )
+   matches = getMatchingProjects( taskApi, options, criteria )
+   checkProjectAmbiguity( matches, criteria )
+   if len( matches ) != 1:
+      raise RuntimeError( "Matched %d project(s)" % len( matches ) )
+   project = matches[ 0 ]
    if len( words ) < 1:
       raise RuntimeError( "No new name given" )
    project.title = ' '.join( words )
@@ -395,6 +445,7 @@ def doProjectDelete( taskApi, options, criteria, words, args ):
    if not criteria.hasInstanceOf( Project.ProjectMatcher ):
       raise RuntimeError( "must specify project id(s) or name(s)" )
    projects = getMatchingProjects( taskApi, options, criteria )
+   checkProjectAmbiguity( projects, criteria )
    for project in projects:
       delProject( project, "force" in options )
 

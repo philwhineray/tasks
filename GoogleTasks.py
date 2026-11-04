@@ -4,8 +4,10 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.auth.exceptions import RefreshError
+import os
 import os.path
 import pickle
+import shutil
 import sys
 import time
 
@@ -43,8 +45,8 @@ class GoogleTasks:
       return date + "T" + time + ":00.000Z"
 
    class Project( Project.Project ):
-      def __init__( self, taskApi, apiObject  ):
-         super().__init__( apiObject.get( 'title' ) )
+      def __init__( self, taskApi, apiObject ):
+         super().__init__( apiObject.get( 'title' ), accountName=taskApi.accountName )
          self.loaded = False
          self.taskApi = taskApi
          self.apiObject = apiObject
@@ -224,22 +226,33 @@ class GoogleTasks:
          return result
 
 
-   def __init__( self, configDir, cacheDir ):
+   def __init__( self, configDir, cacheDir, accountName="default" ):
       self.creds = None
       self.service = None
       self.configDir = configDir
-      self.cacheDir = cacheDir
+      self.accountName = accountName
+      self.cacheDir = os.path.join( cacheDir, accountName )
+      self.manager = None
+      if not os.path.exists( self.cacheDir ):
+         os.makedirs( self.cacheDir )
 
    def authenticate( self, alternateCredentials=None ):
       self.creds = None
 
       if alternateCredentials:
          suffix = "." + alternateCredentials
+      elif self.accountName and self.accountName != "default":
+         suffix = "." + self.accountName
       else:
          suffix = ""
 
       appCredentialsFile = self.configDir + self.appCredentialsFileName + suffix
       userCredentialsFile = self.configDir + self.userCredentialsFileName + suffix
+
+      if self.accountName == "default" and not os.path.exists( appCredentialsFile ):
+         if os.path.exists( appCredentialsFile + ".default" ):
+            appCredentialsFile = appCredentialsFile + ".default"
+            userCredentialsFile = userCredentialsFile + ".default"
 
       if not os.path.exists( appCredentialsFile ):
          raise RuntimeError( "no credentials file", appCredentialsFile )
@@ -276,7 +289,7 @@ class GoogleTasks:
    def tasks( self ):
       return self.service.tasks()
 
-   def getProjects( self ):
+   def getProjects( self, updateIds=True ):
       first = True
       nextPage = None
       self.projects = []
@@ -288,7 +301,8 @@ class GoogleTasks:
          for apiObject in result.get( 'items', [] ):
             self.projects.append( GoogleTasks.Project( self, apiObject ) )
          nextPage = result.get( 'nextPageToken', None )
-      updateShortIds( self.projects, "p" )
+      if updateIds:
+         updateShortIds( self.projects, "p" )
       return self.projects
 
    def newProject( self ):
@@ -334,5 +348,140 @@ class GoogleTasks:
       return tasks
 
    def assignTaskIds( self, newTasks ):
-      self.allTasks |= newTasks
+      if self.manager is not None:
+         self.manager.assignTaskIds( newTasks )
+      else:
+         self.allTasks |= newTasks
+         updateShortIds( self.allTasks, "t" )
+
+class MultiAccountManager:
+   """Manages multiple GoogleTasks adapter instances across accounts."""
+
+   def __init__( self, configDir, cacheDir, activeAccount=None ):
+      self.configDir = configDir
+      self.cacheDir = cacheDir
+      self.activeAccount = activeAccount  # None = all accounts; str = single override
+      self.accounts = {}
+      self.defaultAccountName = "default"
+      self.allTasks = set()
+      self.allProjects = []
+      self._discoverAccounts()
+      self._authenticateAll()
+
+   def _discoverAccounts( self ):
+      """Scans configDir for app-credentials.json* and default-account."""
+      if not os.path.exists( self.configDir ):
+         raise RuntimeError( "Config directory does not exist", self.configDir )
+
+      discovered = {}
+      defaultCred = os.path.join( self.configDir, "app-credentials.json" )
+      if os.path.exists( defaultCred ):
+         discovered[ "default" ] = defaultCred
+
+      prefix = "app-credentials.json."
+      for fname in sorted( os.listdir( self.configDir ) ):
+         if fname.startswith( prefix ):
+            acctName = fname[ len( prefix ): ]
+            if acctName:
+               discovered[ acctName ] = os.path.join( self.configDir, fname )
+
+      if not discovered:
+         raise RuntimeError( "no credentials file - see README.md#app-authentication", defaultCred )
+
+      # Check default-account file
+      defaultAccountFile = os.path.join( self.configDir, "default-account" )
+      hasDefaultAccountFile = False
+      if os.path.exists( defaultAccountFile ):
+         with open( defaultAccountFile, "r" ) as f:
+            for line in f:
+               line = line.strip()
+               if line and not line.startswith( "#" ):
+                  self.defaultAccountName = line
+                  hasDefaultAccountFile = True
+                  break
+
+      if self.defaultAccountName not in discovered:
+         if len( discovered ) == 1 and not hasDefaultAccountFile:
+            self.defaultAccountName = next( iter( discovered.keys() ) )
+         else:
+            raise RuntimeError(
+               f"Default account '{self.defaultAccountName}' not found in discovered accounts: {list( discovered.keys() )}"
+            )
+
+      if self.activeAccount:
+         if self.activeAccount not in discovered:
+            raise RuntimeError(
+               f"Specified account '{self.activeAccount}' not found in discovered accounts: {list( discovered.keys() )}"
+            )
+         self.activeAccountNames = [ self.activeAccount ]
+      else:
+         self.activeAccountNames = list( discovered.keys() )
+
+      self.discoveredAccounts = discovered
+
+   def _migrateLegacyCache( self ):
+      """Migrates ~/.cache/tasks/*.pickle into ~/.cache/tasks/default/."""
+      if not os.path.exists( self.cacheDir ):
+         return
+      defaultCacheDir = os.path.join( self.cacheDir, "default" )
+      for fname in os.listdir( self.cacheDir ):
+         if fname.endswith( ".pickle" ) and ( fname.startswith( "project-" ) or fname.startswith( "tasks-" ) ):
+            if not os.path.exists( defaultCacheDir ):
+               os.makedirs( defaultCacheDir )
+            oldPath = os.path.join( self.cacheDir, fname )
+            newPath = os.path.join( defaultCacheDir, fname )
+            try:
+               shutil.move( oldPath, newPath )
+            except Exception:
+               pass
+
+   def _authenticateAll( self ):
+      """Authenticates each active account adapter."""
+      self._migrateLegacyCache()
+      authErrors = []
+      for name in self.activeAccountNames:
+         try:
+            gt = GoogleTasks( self.configDir, self.cacheDir, accountName=name )
+            gt.manager = self
+            gt.authenticate()
+            self.accounts[ name ] = gt
+         except Exception as e:
+            authErrors.append( ( name, e ) )
+            print( f"Warning: failed to authenticate account '{name}': {e}", file=sys.stderr )
+
+      if not self.accounts:
+         if authErrors:
+            raise authErrors[ 0 ][ 1 ]
+         else:
+            raise RuntimeError( "No accounts available" )
+
+   def getProjects( self ):
+      """Fetches and aggregates projects across all accounts with global ShortIds."""
+      self.allProjects = []
+      for name, acct in self.accounts.items():
+         acctProjects = acct.getProjects( updateIds=False )
+         self.allProjects.extend( acctProjects )
+      self.allProjects = Project.Project.sort( self.allProjects, defaultAccount=self.defaultAccountName )
+      updateShortIds( self.allProjects, "p" )
+      return self.allProjects
+
+   def newProject( self, accountName=None ):
+      """Creates a new Project attached to the specified or default account."""
+      if accountName is None:
+         accountName = self.defaultAccountName
+      if accountName not in self.accounts:
+         raise RuntimeError( f"Account '{accountName}' not found in active accounts: {list( self.accounts.keys() )}" )
+      return self.accounts[ accountName ].newProject()
+
+   def assignTaskIds( self, newTasks ):
+      """Recomputes global collision-free ShortIds across all loaded tasks."""
+      self.allTasks |= set( newTasks )
       updateShortIds( self.allTasks, "t" )
+
+   def assignShortIds( self ):
+      """Recomputes global collision-free ShortIds across all projects and tasks."""
+      if self.allProjects:
+         updateShortIds( self.allProjects, "p" )
+      if self.allTasks:
+         updateShortIds( self.allTasks, "t" )
+

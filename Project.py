@@ -182,7 +182,7 @@ def read( taskApi, options, infile=None ):
 
       original = taskById.get( task.shortId )
       if not original:
-         original = project.newTask()
+         original = currentProject.newTask()
 
       if original in used:
          raise ParseError( "Line %d - duplicate id: %s" % ( errorLineNo, original.shortId ) )

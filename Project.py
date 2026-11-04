@@ -25,7 +25,7 @@ class Project:
       self._tasks.add( task )
 
    def removeTask( self, task ):
-      self._tasks.add( task )
+      self._tasks.remove( task )
 
    def get_tasks( self ):
       return self._tasks

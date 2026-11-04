@@ -88,5 +88,54 @@ class TestDoTaskAdd( unittest.TestCase ):
       self.assertIn( "Matched 0 project(s)", str( ctx.exception ) )
 
 
+class TestLoadBulkEditFileExtension( unittest.TestCase ):
+   def test_creates_default_when_no_file_exists( self ):
+      import tempfile
+      with tempfile.TemporaryDirectory() as tmpdir:
+         preferred = Path( tmpdir ) / "bulk-edit-extension"
+         fallback = Path( tmpdir ) / "bulk-edit-extenstion"
+
+         ext = task_cli.loadBulkEditFileExtension( str( preferred ), str( fallback ) )
+         self.assertEqual( ext, "txt" )
+         self.assertTrue( preferred.exists() )
+         self.assertEqual( preferred.read_text().strip(), "txt" )
+         self.assertFalse( fallback.exists() )
+
+   def test_falls_back_to_legacy_file_if_present( self ):
+      import tempfile
+      with tempfile.TemporaryDirectory() as tmpdir:
+         preferred = Path( tmpdir ) / "bulk-edit-extension"
+         fallback = Path( tmpdir ) / "bulk-edit-extenstion"
+         fallback.write_text( "org\n" )
+
+         ext = task_cli.loadBulkEditFileExtension( str( preferred ), str( fallback ) )
+         self.assertEqual( ext, "org" )
+         self.assertFalse( preferred.exists() )
+
+   def test_prefers_new_file_over_fallback( self ):
+      import tempfile
+      with tempfile.TemporaryDirectory() as tmpdir:
+         preferred = Path( tmpdir ) / "bulk-edit-extension"
+         fallback = Path( tmpdir ) / "bulk-edit-extenstion"
+         preferred.write_text( "md\n" )
+         fallback.write_text( "org\n" )
+
+         ext = task_cli.loadBulkEditFileExtension( str( preferred ), str( fallback ) )
+         self.assertEqual( ext, "md" )
+
+   def test_handles_comments_and_whitespace( self ):
+      import tempfile
+      with tempfile.TemporaryDirectory() as tmpdir:
+         f = Path( tmpdir ) / "bulk-edit-extension"
+         f.write_text( "# comment\n\n  custom_ext  \n" )
+
+         ext = task_cli.loadBulkEditFileExtension( str( f ) )
+         self.assertEqual( ext, "custom_ext" )
+
+   def test_constants_defined( self ):
+      self.assertEqual( task_cli.bulkEditFileExtensionFile, "/bulk-edit-extension" )
+      self.assertEqual( task_cli.bulkEditFileExtensionFallbackFile, "/bulk-edit-extenstion" )
+
+
 if __name__ == '__main__':
    unittest.main()

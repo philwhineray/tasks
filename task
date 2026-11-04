@@ -60,7 +60,8 @@ argOptionMap = {
 
 userDefinedCommandsFile = "/user-defined-commands"
 defaultAddProjectFile = "/default-add-project"
-bulkEditFileExtensionFile = "/bulk-edit-extenstion"
+bulkEditFileExtensionFile = "/bulk-edit-extension"
+bulkEditFileExtensionFallbackFile = "/bulk-edit-extenstion"
 
 globalConfig = {}
 
@@ -81,7 +82,8 @@ def main( argv ):
                           appCredentialsFile )
 
    globalConfig[ "fileExtension" ] = loadBulkEditFileExtension(
-         configDir + bulkEditFileExtensionFile )
+         configDir + bulkEditFileExtensionFile,
+         configDir + bulkEditFileExtensionFallbackFile )
 
    options = {}
    words = []
@@ -443,15 +445,19 @@ def loadDefaultAddProject( defaultAddProjectFilename ):
          return line.strip()
    return None
 
-def loadBulkEditFileExtension( bulkEditFileExtensionFilename ):
+def loadBulkEditFileExtension( bulkEditFileExtensionFilename, fallbackFilename=None ):
    if not os.path.exists( bulkEditFileExtensionFilename ):
-      with open( bulkEditFileExtensionFilename, 'w' ) as bulkEditFileExtensionFile:
-         print( "txt", file=bulkEditFileExtensionFile )
+      if fallbackFilename and os.path.exists( fallbackFilename ):
+         bulkEditFileExtensionFilename = fallbackFilename
+      else:
+         with open( bulkEditFileExtensionFilename, 'w' ) as bulkEditFileExtensionFile:
+            print( "txt", file=bulkEditFileExtensionFile )
    with open( bulkEditFileExtensionFilename, 'r' ) as bulkEditFileExtensionFile:
       for line in bulkEditFileExtensionFile:
-         if re.match( r"^\s*#", line ):
+         line = line.strip()
+         if not line or line.startswith( '#' ):
             continue
-         return line.strip()
+         return line
    return None
 
 if __name__ == '__main__':

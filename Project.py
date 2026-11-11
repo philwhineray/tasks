@@ -232,6 +232,8 @@ def read( taskApi, options, infile=None ):
 
       original = taskById.get( task.shortId )
       if not original:
+         if task.shortId != "t":
+            raise ParseError( "Line %d - unknown task id: %s" % ( errorLineNo, task.shortId ) )
          targetTask = currentProject.newTask()
       else:
          if original in used:
@@ -302,6 +304,8 @@ def read( taskApi, options, infile=None ):
 
       original = projectById.get( project.shortId )
       if not original:
+         if project.shortId != "p":
+            raise ParseError( "Line %d - unknown project id: %s" % ( lineNo, project.shortId ) )
          if ( project.accountName, project.title ) in projectKeys:
             raise ParseError( "Line %d - project %s:%s already exists, refusing to duplicate name" % ( lineNo, project.accountName, project.title ) )
          if hasattr( taskApi, "newProject" ):
@@ -382,6 +386,12 @@ def read( taskApi, options, infile=None ):
       except Exception as ex:
          print( "Warning: failed to delete source task %s: %s" % ( getattr( item, "shortId", "" ), ex ), file=sys.stderr )
          raise
+      if hasattr( taskApi, "allTasks" ):
+         taskApi.allTasks.discard( item )
+
+   for item in tasksToSave:
+      if hasattr( taskApi, "allTasks" ) and getattr( item, "apiId", None ):
+         taskApi.allTasks.add( item )
    for project in projectsToDelete:
       project.delete()
 

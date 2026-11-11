@@ -458,6 +458,7 @@ class MultiAccountManager:
    def getProjects( self ):
       """Fetches and aggregates projects across all accounts with global ShortIds."""
       self.allProjects = []
+      self.allTasks = set()
       for name, acct in self.accounts.items():
          acctProjects = acct.getProjects( updateIds=False )
          self.allProjects.extend( acctProjects )

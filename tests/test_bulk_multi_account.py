@@ -300,6 +300,161 @@ class TestBulkMultiAccount( unittest.TestCase ):
 
       self.assertIn( "Warning: failed to delete source task t01", err )
 
+   def test_unknown_task_id_raises_parse_error( self ):
+      mam = MockBulkAccountManager()
+      p_work = MockBulkProject( "Inbox", accountName="work", shortId="p01" )
+      mam.addProject( p_work )
+
+      edited_buffer = (
+         "* (p01) work:Inbox\n"
+         "** (t99) [ ] Mistyped task id\n"
+      )
+
+      with self.assertRaises( Project.ParseError ) as ctx:
+         Project.read( mam, {}, io.StringIO( edited_buffer ) )
+      self.assertIn( "unknown task id: t99", str( ctx.exception ) )
+
+   def test_unknown_project_id_raises_parse_error( self ):
+      mam = MockBulkAccountManager()
+      p_work = MockBulkProject( "Inbox", accountName="work", shortId="p01" )
+      mam.addProject( p_work )
+
+      edited_buffer = (
+         "* (p99) work:Nonexistent Project\n"
+         "** (t) [ ] New task\n"
+      )
+
+      with self.assertRaises( Project.ParseError ) as ctx:
+         Project.read( mam, {}, io.StringIO( edited_buffer ) )
+      self.assertIn( "unknown project id: p99", str( ctx.exception ) )
+
+
+class FakeAdapterProject( Project.Project ):
+   def __init__( self, taskApi, title, tasks_info ):
+      super().__init__( title, accountName=taskApi.accountName )
+      self.taskApi = taskApi
+      self.apiObject = { "id": f"{taskApi.accountName}_{title}", "title": title }
+      self.apiId = self.apiObject[ "id" ]
+      self.tasks_info = tasks_info
+      self.loaded = False
+
+   def save( self ):
+      pass
+
+   def delete( self ):
+      pass
+
+   def get_tasks( self ):
+      if not self.loaded:
+         self.loaded = True
+         for t_id, t_title in self.tasks_info:
+            FakeAdapterTask( self, { "id": t_id, "title": t_title } )
+         self.taskApi.assignTaskIds( self._tasks )
+      return super().get_tasks()
+
+   tasks = property( get_tasks )
+
+   def newTask( self ):
+      t = FakeAdapterTask( self, { "id": None, "title": "" } )
+      return t
+
+
+class FakeAdapterTask( Task.Task ):
+   def __init__( self, project, apiObject ):
+      super().__init__( project )
+      self.taskApi = project.taskApi
+      self.apiObject = apiObject
+      self.apiId = apiObject.get( "id" )
+      self.title = apiObject.get( "title" )
+      self.is_saved = False
+      self.is_deleted = False
+
+   def save( self ):
+      self.is_saved = True
+      self.taskApi.saved_tasks.append( self )
+
+   def delete( self ):
+      self.is_deleted = True
+      self.taskApi.deleted_tasks.append( self )
+
+
+class FakeGoogleTasksAdapter:
+   def __init__( self, name, tasks_data ):
+      self.accountName = name
+      self.projects = []
+      self.allTasks = set()
+      self.manager = None
+      self.tasks_data = tasks_data
+      self.saved_tasks = []
+      self.deleted_tasks = []
+
+   def getProjects( self, updateIds=True ):
+      self.projects = []
+      self.allTasks = set()
+      for p_title, tasks in self.tasks_data.items():
+         p = FakeAdapterProject( self, p_title, tasks )
+         self.projects.append( p )
+      if updateIds:
+         from ShortId import updateShortIds
+         updateShortIds( self.projects, "p" )
+      return self.projects
+
+   def assignTaskIds( self, newTasks ):
+      if self.manager is not None:
+         self.manager.assignTaskIds( newTasks )
+      else:
+         self.allTasks |= set( newTasks )
+         from ShortId import updateShortIds
+         updateShortIds( self.allTasks, "t" )
+
+
+class TestBulkRoundTripRegression( unittest.TestCase ):
+   def test_round_trip_bulk_edit_does_not_duplicate_tasks( self ):
+      from GoogleTasks import MultiAccountManager
+
+      mam = MultiAccountManager.__new__( MultiAccountManager )
+      mam.defaultAccountName = "work"
+      mam.allProjects = []
+      mam.allTasks = set()
+
+      gt_work = FakeGoogleTasksAdapter( "work", { "Inbox": [ ( "task_w1", "Work Task 1" ) ] } )
+      gt_work.manager = mam
+      gt_pers = FakeGoogleTasksAdapter( "personal", { "Inbox": [ ( "task_p1", "Personal Task 1" ) ] } )
+      gt_pers.manager = mam
+      mam.accounts = { "work": gt_work, "personal": gt_pers }
+
+      # First pass: Project.write
+      projects = mam.getProjects()
+      buf = io.StringIO()
+      Project.write( projects, {}, Matcher.And(), outfile=buf )
+      written_text = buf.getvalue()
+
+      self.assertIn( "work:Inbox", written_text )
+      self.assertIn( "personal:Inbox", written_text )
+
+      # Second pass: Project.read without changes
+      read_buf = io.StringIO( written_text )
+      Project.read( mam, {}, infile=read_buf )
+
+      # Assert NO duplicate tasks were created
+      new_work_tasks = [ t for t in gt_work.saved_tasks if t.apiId is None ]
+      new_pers_tasks = [ t for t in gt_pers.saved_tasks if t.apiId is None ]
+
+      self.assertEqual( len( new_work_tasks ), 0, "No duplicate tasks should be created in work account" )
+      self.assertEqual( len( new_pers_tasks ), 0, "No duplicate tasks should be created in personal account" )
+
+   def test_multi_account_manager_resets_all_tasks_on_get_projects( self ):
+      from GoogleTasks import MultiAccountManager
+
+      mam = MultiAccountManager.__new__( MultiAccountManager )
+      mam.defaultAccountName = "default"
+      mam.accounts = {}
+      mam.allProjects = []
+      mam.allTasks = { "dummy_task" }
+
+      mam.getProjects()
+      self.assertEqual( len( mam.allTasks ), 0, "allTasks must be cleared on getProjects()" )
+
 
 if __name__ == '__main__':
    unittest.main()

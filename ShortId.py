@@ -32,18 +32,28 @@ def updateShortIds( tasks, extraPrefix="" ):
    idToHash = {}
 
    for task in tasks:
-      taskId = task.apiObject[ 'id' ]
-      idToHash[ taskId ] = sha256( taskId.encode( 'utf8' ) ).hexdigest()
-      trie.addString( idToHash[ taskId ] )
+      apiObj = getattr( task, "apiObject", None )
+      if not apiObj or "id" not in apiObj or not apiObj[ "id" ]:
+         continue
+      taskId = apiObj[ 'id' ]
+      if taskId not in idToHash:
+         idToHash[ taskId ] = sha256( taskId.encode( 'utf8' ) ).hexdigest()
+         trie.addString( idToHash[ taskId ] )
 
    fixedLen = 0
    for task in tasks:
-      taskId = task.apiObject[ 'id' ]
+      apiObj = getattr( task, "apiObject", None )
+      if not apiObj or "id" not in apiObj or not apiObj[ "id" ]:
+         continue
+      taskId = apiObj[ 'id' ]
       prefix = trie.generateUniquePrefix( idToHash[ taskId ] )
       prefixLen = len( prefix )
       if prefixLen > fixedLen:
          fixedLen = prefixLen
 
    for task in tasks:
-      taskId = task.apiObject[ 'id' ]
+      apiObj = getattr( task, "apiObject", None )
+      if not apiObj or "id" not in apiObj or not apiObj[ "id" ]:
+         continue
+      taskId = apiObj[ 'id' ]
       task.shortId = extraPrefix + idToHash[ taskId ][ : fixedLen ]
